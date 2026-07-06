@@ -1,5 +1,5 @@
 # YTScribe one-time setup for a fresh Windows machine.
-# Installs Python 3.12 + FFmpeg via winget (signed installers — safe under
+# Installs Python 3.12 + FFmpeg via winget (signed installers - safe under
 # Smart App Control), creates a virtual environment, installs dependencies.
 # Run from the repository root:  powershell -ExecutionPolicy Bypass -File setup.ps1
 
@@ -18,7 +18,7 @@ if (-not (Test-Path $pyExe)) {
     winget install --id Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
     Refresh-Path
 }
-if (-not (Test-Path $pyExe)) { throw "Python 3.12 install failed — install it manually from python.org and re-run." }
+if (-not (Test-Path $pyExe)) { throw "Python 3.12 install failed - install it manually from python.org and re-run." }
 
 # --- FFmpeg ---
 Refresh-Path

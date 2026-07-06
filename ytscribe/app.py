@@ -27,7 +27,13 @@ def main() -> int:
 
 
 def run_cli(args) -> int:
+    import builtins
+    import functools
+
     from . import pipeline
+
+    # progress must be visible live when stdout is a pipe (scheduled jobs, logs)
+    print = functools.partial(builtins.print, flush=True)  # noqa: A001
     cfg = load_config()
     problems = cfg.validate()
     if problems:

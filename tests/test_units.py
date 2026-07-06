@@ -232,6 +232,33 @@ class TestConfig(unittest.TestCase):
         cfg.min_speakers, cfg.max_speakers = 5, 2
         self.assertEqual(len(cfg.validate()), 2)
 
+    def test_save_load_roundtrip(self):
+        import dataclasses
+        from unittest import mock
+
+        from ytscribe import config as cfgmod
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch.object(cfgmod, "config_file",
+                                   return_value=Path(td) / "config.json"):
+                cfg = Config()
+                cfg.whisper_model = "large-v3-turbo"
+                cfg.speaker_names = {"SPEAKER_00": "Cliffe"}
+                cfg.export_formats = ["md", "json"]
+                cfgmod.save_config(cfg)
+                loaded = cfgmod.load_config()
+                self.assertEqual(dataclasses.asdict(loaded), dataclasses.asdict(cfg))
+
+    def test_corrupt_config_falls_back_to_defaults(self):
+        from unittest import mock
+
+        from ytscribe import config as cfgmod
+        with tempfile.TemporaryDirectory() as td:
+            bad = Path(td) / "config.json"
+            bad.write_text("{not json", encoding="utf-8")
+            with mock.patch.object(cfgmod, "config_file", return_value=bad):
+                loaded = cfgmod.load_config()
+                self.assertEqual(loaded.whisper_model, Config().whisper_model)
+
 
 if __name__ == "__main__":
     unittest.main()
