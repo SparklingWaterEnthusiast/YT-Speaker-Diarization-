@@ -43,7 +43,8 @@ def export_video(merged: dict, meta: dict, cfg, out_dir: Path) -> list[Path]:
     for fmt in cfg.export_formats:
         writer = writers.get(fmt)
         if writer:
-            path = base.with_suffix(f".{fmt}")
+            # NOT with_suffix(): titles may contain dots, which it would eat
+            path = base.parent / f"{base.name}.{fmt}"
             writer(merged, meta, cfg, path)
             written.append(path)
     return written

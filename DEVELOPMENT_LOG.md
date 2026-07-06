@@ -74,4 +74,54 @@ pipeline for headless/automated runs.
   already-downloaded audio (cache hit) and completed. Verified retry-queue +
   cache-reuse behavior with a real failure, unplanned but valuable.
 
-(continued in §6 with benchmark results)
+- **Channel detection**: `@givemeananswer` resolved to 866 videos (Videos
+  tab; Shorts/live streams are separate tabs and can be queued by their tab
+  URLs). Titles/durations extracted flat with no downloads.
+- **Playlist**: channel's "Studio" playlist resolved to 75 videos.
+- **Invalid URL / dead video**: raises a clean error, surfaced in UI/CLI.
+- **Corrupted audio**: garbage `audio.m4a` → clear ffmpeg error, no temp
+  files left behind, job goes to retry queue.
+- **Interruption/resume**: killed the process mid-transcription of a 2-video
+  queue. Restart recovered the job (`running`→`queued`), the acquire stage was
+  a cache hit (no re-download), transcription redid its incomplete stage, both
+  videos completed, combined transcript written. **Pass.**
+- **Cache policy**: `delete_after_video` verified — audio gone after
+  completion, JSON artifacts retained; re-export from artifacts alone works
+  (used it to regenerate benchmark files after the filename fix).
+
+### Bugs found & fixed during testing
+
+3. `run.ps1`/`setup.ps1` used em-dashes; PowerShell 5.1 reads BOM-less .ps1
+   as ANSI → parse error. Scripts are now pure ASCII.
+4. CLI output was block-buffered when piped; progress now flushes live.
+5. **Filename bug**: `Path.with_suffix()` ate everything after the last dot
+   in dotted titles ("…the Same Thing. Jesus…"), dropping the `[video_id]`
+   suffix and inviting collisions. Fixed with plain concatenation +
+   regression test.
+6. ffmpeg failure messages showed the build banner instead of the error;
+   now the last stderr lines.
+
+## 6. Benchmark (fZZXVNt1gk0, 28.5 min, street Q&A, 6 speakers)
+
+- Processed end-to-end in **5.4 min ≈ 5.3× realtime** (including one-time
+  model loading; steady-state is faster). Peak VRAM ~3.8 GB of 8 GB.
+- Diarization: 6 speakers, 104 turns.
+- Sanity check against the provided professional sample (19:36–27:52
+  window): turn structure matches nearly 1:1 —
+  SPEAKER_02=Stuart Knechtle, SPEAKER_03=Cliffe Knechtle,
+  SPEAKER_01/04=audience questioners; boundaries within ~1–2 s of the
+  reference; interjections ("But then why give original sin…", "Does that
+  make any sense? … Yes, sir.") attributed to the correct speakers.
+- Known imperfections observed: (a) occasional 1-word turns at rapid
+  handoffs assigned to the interlocutor (e.g. a stray "I" at 23:19);
+  (b) some rapid Q&A passages come out of Whisper lowercase/unpunctuated;
+  (c) turn boundaries can shift a word relative to the reference.
+  Formal WER/DER comparison awaits the full reference transcript.
+
+## 7. Final state
+
+All success criteria verified this session: fresh-machine setup path
+(`setup.ps1` — winget + venv, Smart App Control safe), GUI launches (Qt
+offscreen smoke test + live construction), URL → queue → five-stage pipeline
+→ five export formats + combined transcript, 25/25 unit tests passing,
+benchmark video processed successfully.

@@ -143,6 +143,15 @@ class TestExport(unittest.TestCase):
             for f in files:
                 self.assertGreater(f.stat().st_size, 20)
 
+    def test_dotted_title_keeps_video_id(self):
+        """Titles ending in '.' must not swallow the [video_id] suffix."""
+        self.meta["title"] = "All Religions Do Not Say the Same Thing."
+        with tempfile.TemporaryDirectory() as td:
+            files = export.export_video(self.merged, self.meta, self.cfg, Path(td))
+            for f in files:
+                self.assertIn("[abc123]", f.name)
+                self.assertIn(f.suffix.lstrip("."), self.cfg.export_formats)
+
     def test_filename_sanitized(self):
         name = export.safe_filename(self.meta)
         for ch in '<>:"/\\|?*':
