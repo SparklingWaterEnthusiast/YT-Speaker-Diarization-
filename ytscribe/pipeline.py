@@ -20,8 +20,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import diarize, export, media, merge, transcribe
-from .config import Config
+from . import diarize, export, media, merge, transcribe, voices
+from .config import APP_DIR, Config
 from .db import JobStore
 
 
@@ -75,6 +75,7 @@ class QueueRunner:
         self.stop_event = threading.Event()      # set -> finish current, stop queue
         self._transcriber: transcribe.Transcriber | None = None
         self._diarizer: diarize.Diarizer | None = None
+        self._voice_db: voices.VoiceDB | None = None
         self._rtf_ema: float | None = None       # audio-seconds per wall-second
         self._prefetch: dict = {}
 
@@ -151,12 +152,30 @@ class QueueRunner:
         self.cb.on_queue_done(summary)
         return summary
 
+    def run_single(self, video_id: str) -> None:
+        """Process one known video through the pipeline regardless of its
+        queue status (missing stages run, cached stages are reused).
+        Used by --seed; does not touch other queued jobs."""
+        job = self.store.get(video_id)
+        if job is None:
+            raise ValueError(f"video {video_id} is not in the job store")
+        started = time.time()
+        self.cb.on_job_start(video_id, job["title"] or job["url"])
+        self._process(job, None)
+        self.store.mark_done(video_id, time.time() - started)
+        self.cb.on_job_done(video_id, "done", "")
+
     # -- per-job processing ---------------------------------------------------
 
     def _process(self, job: dict, next_job: dict | None) -> None:
         vid = job["video_id"]
         vdir = self.cfg.cache_path / vid
         ffmpeg = self.cfg.resolve_ffmpeg()
+
+        # housekeeping: half-written artifacts from a crash mid-stage
+        if vdir.is_dir():
+            for leftover in vdir.glob("*.tmp*"):
+                leftover.unlink(missing_ok=True)
 
         # Stage 1: acquire ---------------------------------------------------
         self._enter_stage(vid, "acquire")
@@ -189,11 +208,21 @@ class QueueRunner:
 
         # Stage 3: diarize ----------------------------------------------------
         self._enter_stage(vid, "diarize")
+        self._invalidate_stale_diarization(vdir)
         if self._diarizer is None:
             self._diarizer = diarize.Diarizer(self.cfg, self.cb.on_log)
         dia = diarize.run_stage(
             wav, vdir / "diarization.json", self._diarizer,
             progress_cb=lambda f, s: self.cb.on_item_progress(vid, "diarize", f, s))
+
+        # speaker identification: playback samples must be cut and voices
+        # matched now, while audio.wav still exists (cache policy may delete it)
+        voices.extract_samples(wav, dia, vdir / "samples")
+        if self.cfg.recognition_enabled:
+            if self._voice_db is None:
+                self._voice_db = voices.VoiceDB(APP_DIR / "voices.sqlite3")
+            voices.auto_match(vdir, dia, self._voice_db,
+                              self.cfg.recognition_threshold, self.cb.on_log)
         self._checkpoint()
 
         # Stage 4: merge -----------------------------------------------------
@@ -202,11 +231,30 @@ class QueueRunner:
 
         # Stage 5: export ------------------------------------------------------
         self._enter_stage(vid, "export")
-        files = export.export_video(merged, meta, self.cfg, self.cfg.output_path)
+        names = voices.display_names(self.cfg, vdir, merged.get("speakers", []))
+        files = export.export_video(merged, meta, self.cfg, self.cfg.output_path,
+                                    names=names)
         self.cb.on_log(f"Exported {len(files)} file(s) for '{meta.get('title', vid)}'")
 
         if self.cfg.cache_policy == "delete_after_video":
             self._delete_audio(vdir)
+
+    def _invalidate_stale_diarization(self, vdir: Path) -> None:
+        """Pre-v0.2 diarization artifacts lack embeddings; recomputing them may
+        relabel speakers, so the merged artifact must be rebuilt with them."""
+        diar_file = vdir / "diarization.json"
+        if not diar_file.exists():
+            return
+        try:
+            stale = "embeddings" not in json.loads(
+                diar_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            stale = True
+        if stale:
+            self.cb.on_log("Recomputing diarization (older artifact without "
+                           "voice embeddings).")
+            diar_file.unlink(missing_ok=True)
+            (vdir / "merged.json").unlink(missing_ok=True)
 
     def _enter_stage(self, vid: str, stage: str) -> None:
         self._wait_if_paused()
@@ -302,8 +350,12 @@ class QueueRunner:
                 vdir = self.cfg.cache_path / vid
                 mfile, meta_file = vdir / "merged.json", vdir / "meta.json"
                 if mfile.exists() and meta_file.exists():
-                    items.append((json.loads(mfile.read_text(encoding="utf-8")),
-                                  json.loads(meta_file.read_text(encoding="utf-8"))))
+                    merged = json.loads(mfile.read_text(encoding="utf-8"))
+                    names = voices.display_names(self.cfg, vdir,
+                                                 merged.get("speakers", []))
+                    items.append((merged,
+                                  json.loads(meta_file.read_text(encoding="utf-8")),
+                                  names))
             if items:
                 job = self.store.get(session_done[0])
                 batch = (job.get("batch") or "").rsplit(" ", 2)[0] if job else ""
@@ -313,8 +365,11 @@ class QueueRunner:
                 self.cb.on_log(f"Combined transcript written ({len(items)} videos).")
 
         if self.cfg.cache_policy == "delete_after_queue":
-            for vid in session_done:
-                self._delete_audio(self.cfg.cache_path / vid)
+            # every finished job, not just this session's: a queue completed
+            # across several sessions must still clean up earlier audio
+            for j in self.store.all_jobs():
+                if j["status"] == "done":
+                    self._delete_audio(self.cfg.cache_path / j["video_id"])
 
         return {"completed": len(session_done), "failed": failed,
                 "wall_seconds": wall, "combined": combined_files,

@@ -135,13 +135,32 @@ class TestExport(unittest.TestCase):
                                             {"start": 1.1, "end": 4.0, "word": " world.",
                                              "probability": 0.95}]}]}
 
-    def test_all_formats_written(self):
+    def test_markdown_only_by_default(self):
+        self.assertEqual(Config().export_formats, ["md"])
+        with tempfile.TemporaryDirectory() as td:
+            files = export.export_video(self.merged, self.meta, self.cfg, Path(td))
+            self.assertEqual([f.suffix for f in files], [".md"])
+
+    def test_all_formats_written_when_configured(self):
+        self.cfg.export_formats = ["md", "json", "txt", "srt", "vtt"]
         with tempfile.TemporaryDirectory() as td:
             files = export.export_video(self.merged, self.meta, self.cfg, Path(td))
             exts = sorted(f.suffix for f in files)
             self.assertEqual(exts, [".json", ".md", ".srt", ".txt", ".vtt"])
             for f in files:
                 self.assertGreater(f.stat().st_size, 20)
+
+    def test_extra_formats_reexported(self):
+        """Re-export covers formats already on disk even if deconfigured."""
+        with tempfile.TemporaryDirectory() as td:
+            self.cfg.export_formats = ["md", "srt"]
+            export.export_video(self.merged, self.meta, self.cfg, Path(td))
+            self.cfg.export_formats = ["md"]
+            extra = export.existing_formats(self.meta, Path(td))
+            self.assertIn("srt", extra)
+            files = export.export_video(self.merged, self.meta, self.cfg,
+                                        Path(td), extra_formats=extra)
+            self.assertEqual(sorted(f.suffix for f in files), [".md", ".srt"])
 
     def test_dotted_title_keeps_video_id(self):
         """Titles ending in '.' must not swallow the [video_id] suffix."""
@@ -167,6 +186,7 @@ class TestExport(unittest.TestCase):
             self.assertNotIn("SPEAKER_00", md)
 
     def test_json_roundtrip(self):
+        self.cfg.export_formats = ["json"]
         with tempfile.TemporaryDirectory() as td:
             export.export_video(self.merged, self.meta, self.cfg, Path(td))
             doc = json.loads(next(Path(td).glob("*.json")).read_text(encoding="utf-8"))
@@ -174,6 +194,7 @@ class TestExport(unittest.TestCase):
             self.assertEqual(doc["turns"][0]["words"][0]["word"], " Hello")
 
     def test_srt_timestamps(self):
+        self.cfg.export_formats = ["srt"]
         with tempfile.TemporaryDirectory() as td:
             export.export_video(self.merged, self.meta, self.cfg, Path(td))
             srt = next(Path(td).glob("*.srt")).read_text(encoding="utf-8")
@@ -181,12 +202,22 @@ class TestExport(unittest.TestCase):
             self.assertIn("SPEAKER_00:", srt)
 
     def test_combined(self):
+        self.cfg.export_formats = ["md", "json"]
         with tempfile.TemporaryDirectory() as td:
-            files = export.export_combined([(self.merged, self.meta)] * 2,
+            files = export.export_combined([(self.merged, self.meta, None)] * 2,
                                            self.cfg, Path(td), "TestChan")
             self.assertEqual(len(files), 2)  # md + json
             md = next(Path(td).glob("combined*.md")).read_text(encoding="utf-8")
             self.assertIn("## Contents", md)
+
+    def test_per_video_names_override_config(self):
+        self.cfg.speaker_names = {"SPEAKER_00": "ConfigName"}
+        with tempfile.TemporaryDirectory() as td:
+            export.export_video(self.merged, self.meta, self.cfg, Path(td),
+                                names={"SPEAKER_00": "VideoName"})
+            md = next(Path(td).glob("*.md")).read_text(encoding="utf-8")
+            self.assertIn("**VideoName**", md)
+            self.assertNotIn("ConfigName", md)
 
 
 class TestJobStore(unittest.TestCase):

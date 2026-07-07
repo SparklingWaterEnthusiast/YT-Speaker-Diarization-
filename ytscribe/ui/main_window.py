@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
+import json
 import os
+import sys
 import time
+from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtGui import QColor, QCursor, QFont
 from PySide6.QtWidgets import (QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLabel, QLineEdit, QMainWindow, QMessageBox,
-                               QPlainTextEdit, QProgressBar, QPushButton,
-                               QSplitter, QTableWidget, QTableWidgetItem,
-                               QVBoxLayout, QWidget)
+                               QLabel, QLineEdit, QMainWindow, QMenu,
+                               QMessageBox, QPlainTextEdit, QProgressBar,
+                               QPushButton, QSplitter, QTableWidget,
+                               QTableWidgetItem, QVBoxLayout, QWidget,
+                               QWidgetAction)
 
-from .. import resources
+from .. import resources, voices
 from ..config import APP_DIR, load_config, save_config
 from ..db import JobStore
 from ..export import fmt_ts
@@ -39,6 +43,8 @@ class MainWindow(QMainWindow):
         self.run_worker: RunWorker | None = None
         self.enqueue_worker: EnqueueWorker | None = None
         self.run_started_at: float | None = None
+        self.voice_db = voices.VoiceDB(APP_DIR / "voices.sqlite3")
+        self._row_jobs: list[dict] = []
 
         self._build_ui()
         self.refresh_queue()
@@ -80,6 +86,9 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.cellClicked.connect(self._row_clicked)
+        self.table.setToolTip("Click a completed video to review or rename "
+                              "its speakers")
         split.addWidget(self.table)
 
         # bottom: current item + log
@@ -254,6 +263,98 @@ class MainWindow(QMainWindow):
             if self.run_worker and self.run_worker.isRunning():
                 self.log_line("Note: model/device changes apply to the next queue run.")
 
+    # ------------------------------------------------------- speaker editor --
+
+    def _row_clicked(self, row: int, _col: int):
+        if row >= len(self._row_jobs):
+            return
+        job = self._row_jobs[row]
+        if job["status"] != "done":
+            return
+        self._show_speaker_menu(job)
+
+    def _show_speaker_menu(self, job: dict):
+        vdir = Path(self.cfg.cache_dir) / job["video_id"]
+        merged_file = vdir / "merged.json"
+        if not merged_file.exists():
+            self.statusBar().showMessage(
+                "No speaker data cached for this video.", 4000)
+            return
+        merged = json.loads(merged_file.read_text(encoding="utf-8"))
+        labels = merged.get("speakers", [])
+        if not labels:
+            self.statusBar().showMessage("No speakers detected in this video.", 4000)
+            return
+        names = voices.display_names(self.cfg, vdir, labels)
+        mapping = voices.load_speaker_map(vdir)
+
+        menu = QMenu(self)
+        header = menu.addAction(f"Speakers — {(job['title'] or job['video_id'])[:48]}")
+        header.setEnabled(False)
+        menu.addSeparator()
+        for label in labels:
+            menu.addAction(self._speaker_row_action(menu, vdir, label,
+                                                    names[label], mapping))
+        menu.exec(QCursor.pos())
+
+    def _speaker_row_action(self, menu: QMenu, vdir: Path, label: str,
+                            display: str, mapping: dict) -> QWidgetAction:
+        row = QWidget()
+        lay = QHBoxLayout(row)
+        lay.setContentsMargins(10, 2, 10, 2)
+
+        entry = mapping.get(label) or {}
+        text = display if display == label else f"{display}  ({label})"
+        if entry.get("source") == "auto":
+            text += f"  · auto {entry.get('score', 0):.2f}"
+        name_lbl = QLabel(text)
+        name_lbl.setMinimumWidth(220)
+        lay.addWidget(name_lbl)
+
+        play = QPushButton("▶")
+        play.setFixedWidth(30)
+        play.setToolTip("Play a short voice sample")
+        sample = voices.sample_path(vdir, label)
+        play.setEnabled(sample is not None)
+        play.clicked.connect(lambda _=False, p=sample: self._play_sample(p))
+        lay.addWidget(play)
+
+        edit = QLineEdit()
+        edit.setPlaceholderText("rename… (Enter)")
+        edit.setMinimumWidth(160)
+        edit.returnPressed.connect(
+            lambda l=label, e=edit, m=menu, v=vdir: self._apply_rename(
+                v, l, e.text(), m))
+        lay.addWidget(edit)
+
+        action = QWidgetAction(menu)
+        action.setDefaultWidget(row)
+        return action
+
+    def _play_sample(self, path: Path | None):
+        if path is None:
+            return
+        if sys.platform == "win32":
+            import winsound
+            winsound.PlaySound(str(path),
+                               winsound.SND_FILENAME | winsound.SND_ASYNC)
+
+    def _apply_rename(self, vdir: Path, label: str, new_name: str, menu: QMenu):
+        menu.close()
+        new_name = new_name.strip()
+        if not new_name:
+            return
+        try:
+            voices.apply_rename(self.cfg, vdir, label, new_name,
+                                self.voice_db, self.log_line)
+        except Exception as exc:
+            self.log_line(f"ERROR renaming {label}: {exc}")
+            QMessageBox.warning(self, "Rename failed", str(exc))
+            return
+        self.statusBar().showMessage(
+            f"{label} is now '{new_name}' — transcripts updated, voice "
+            "profile saved.", 6000)
+
     # ---------------------------------------------------------- run events --
 
     def _job_start(self, video_id: str, title: str):
@@ -302,6 +403,7 @@ class MainWindow(QMainWindow):
 
     def refresh_queue(self):
         jobs = self.store.all_jobs()
+        self._row_jobs = jobs
         self.table.setRowCount(len(jobs))
         for r, j in enumerate(jobs):
             title = j["title"] or j["url"]

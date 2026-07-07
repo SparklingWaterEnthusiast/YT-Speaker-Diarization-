@@ -7,9 +7,14 @@ instead of watching.
 - Downloads **audio only** (no video) via yt-dlp — minimal bandwidth and storage
 - Transcribes with **Whisper large-v3** (faster-whisper / CTranslate2, GPU-accelerated)
 - Identifies **who spoke when** with pyannote `speaker-diarization-community-1`
-- Merges both at the **word level** for accurate speaker attribution
-- Exports **Markdown, JSON, TXT, SRT, VTT** per video, plus a combined
-  transcript per queue
+- **Recognizes recurring voices** (v0.2): a persistent voice database learns
+  speakers over time and names them automatically in future videos —
+  unknown voices keep their neutral `SPEAKER_00` labels
+- Click any completed video to **play speaker samples and rename speakers**;
+  transcripts update automatically and the voice is remembered
+- Merges ASR and diarization at the **word level** for accurate attribution
+- Exports **Markdown** by default; JSON, TXT, SRT, VTT are optional, plus a
+  combined transcript per queue
 - Caches every stage — interrupted runs resume without repeating work
 - Designed for large jobs: a 1,000+-video channel can run unattended; failures
   go to a retry queue and never stop the run
@@ -52,6 +57,18 @@ Headless operation (same pipeline, no window):
 
 Good point. Very good point. So maybe Jesus did sin at some point.
 But I have to follow the evidence.
+```
+
+## Teaching it voices
+
+Rename a speaker once (click the completed video → play the sample → type
+the name) and YTScribe stores that person's voice fingerprint. Every future
+video recognizes them automatically. Profiles can also be seeded from a
+professionally diarized transcript:
+
+```powershell
+.\run.ps1 --seed "<video-url>" --reference benchmark\reference_fZZXVNt1gk0.txt
+.\run.ps1 --profiles     # list stored voice profiles
 ```
 
 ## License notes

@@ -94,6 +94,22 @@ class SettingsDialog(QDialog):
         form.addRow("HuggingFace token", self.hf_token)
         root.addWidget(out)
 
+        # --- speaker recognition ---
+        rec = QGroupBox("Speaker recognition")
+        form = QFormLayout(rec)
+        self.rec_enabled = QCheckBox("Automatically name recognized voices "
+                                     "from the voice database")
+        self.rec_enabled.setChecked(cfg.recognition_enabled)
+        form.addRow("", self.rec_enabled)
+        self.rec_threshold = QDoubleSpinBox()
+        self.rec_threshold.setRange(0.30, 0.95)
+        self.rec_threshold.setSingleStep(0.05)
+        self.rec_threshold.setValue(cfg.recognition_threshold)
+        self.rec_threshold.setToolTip("Minimum voice similarity for an "
+                                      "automatic match (higher = stricter)")
+        form.addRow("Match threshold", self.rec_threshold)
+        root.addWidget(rec)
+
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
                                    | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self._save)
@@ -134,5 +150,7 @@ class SettingsDialog(QDialog):
         c.export_formats = [f for f, b in self.fmt_boxes.items() if b.isChecked()]
         c.combined_transcript = self.combined.isChecked()
         c.hf_token = self.hf_token.text().strip()
+        c.recognition_enabled = self.rec_enabled.isChecked()
+        c.recognition_threshold = round(self.rec_threshold.value(), 2)
         save_config(c)
         self.accept()

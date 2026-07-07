@@ -69,10 +69,33 @@ finished download) are reused, so retries are cheap.
 - **SRT / VTT** — subtitle files with speaker prefixes, usable in video
   players and editors.
 
-Speakers are labeled `SPEAKER_00`, `SPEAKER_01`, … per video. To map them to
-real names for a given channel, see CONFIGURATION.md → `speaker_names`; then
-re-run export (delete nothing — just press Start; export re-runs from cached
-results if you delete the transcript files, or use `--cli` after editing).
+Speakers are labeled `SPEAKER_00`, `SPEAKER_01`, … per video until YTScribe
+knows their voices (below). Unrecognized voices always keep their neutral
+labels — names are never guessed.
+
+## Naming speakers (v0.2)
+
+**Click any completed video in the queue table.** A dropdown lists every
+detected speaker with:
+
+- the current label or recognized name (auto-matches show their similarity,
+  e.g. `Cliffe Knechtle (SPEAKER_03) · auto 0.86`),
+- **▶** — plays a ~5-second sample of that voice,
+- a **rename field** — type the real name and press Enter.
+
+Renaming immediately rewrites that video's transcript files (Markdown plus
+any other formats present), and stores the voice in the **voice database**
+(`Documents\YTScribe\voices.sqlite3`). From then on, every new video is
+checked against the stored voices after diarization, and confident matches
+are named automatically — no dialogs, nothing interrupts processing. A
+mis-recognized speaker can be corrected the same way; manual names always
+win over automatic ones.
+
+The more videos you confirm a person in, the more voice samples their
+profile holds and the more robust recognition becomes. Profiles can be
+listed with `.\run.ps1 --profiles` and seeded in bulk from a professionally
+diarized transcript with `--seed <url> --reference <file>` (see
+CONFIGURATION.md).
 
 ## Processing a whole channel (e.g. 1,400 videos)
 

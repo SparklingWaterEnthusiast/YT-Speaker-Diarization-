@@ -71,7 +71,30 @@ class Diarizer:
         raw = to_turns(raw_ann)
         exclusive = to_turns(excl_ann)
         speakers = sorted({t["speaker"] for t in raw})
-        return {"speakers": speakers, "turns": raw, "exclusive": exclusive}
+        embeddings = self._embeddings_by_label(output, raw_ann, speakers)
+        return {"speakers": speakers, "turns": raw, "exclusive": exclusive,
+                "embeddings": embeddings}
+
+    @staticmethod
+    def _embeddings_by_label(output, raw_ann, speakers: list[str]) -> dict:
+        """Map speaker label -> 256-d centroid list (or None).
+
+        pyannote 4 orders centroid rows to match labels(); rows may be
+        zero-padded when a speaker has no clean frames — stored as None.
+        """
+        centroids = getattr(output, "speaker_embeddings", None)
+        result: dict[str, list | None] = {s: None for s in speakers}
+        if centroids is None:
+            return result
+        labels = list(raw_ann.labels())
+        for i, label in enumerate(labels):
+            if i >= len(centroids):
+                break
+            row = centroids[i]
+            norm = float((row ** 2).sum()) ** 0.5
+            if norm > 0 and norm == norm:  # nonzero and not NaN
+                result[label] = [round(float(x), 6) for x in row]
+        return result
 
     def unload(self):
         if self._pipeline is not None:
@@ -120,7 +143,10 @@ def run_stage(wav: Path, out_file: Path, diarizer: Diarizer,
               progress_cb=None) -> dict:
     """Cached stage wrapper: skip work if the artifact already exists."""
     if out_file.exists():
-        return json.loads(out_file.read_text(encoding="utf-8"))
+        cached = json.loads(out_file.read_text(encoding="utf-8"))
+        # pre-v0.2 artifacts lack embeddings -> recompute for recognition
+        if "embeddings" in cached:
+            return cached
     result = diarizer.diarize(wav, progress_cb)
     tmp = out_file.with_suffix(".tmp")
     tmp.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")

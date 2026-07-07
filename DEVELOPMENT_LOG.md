@@ -118,10 +118,72 @@ pipeline for headless/automated runs.
   (c) turn boundaries can shift a word relative to the reference.
   Formal WER/DER comparison awaits the full reference transcript.
 
-## 7. Final state
+## 7. v0.1 final state
 
 All success criteria verified this session: fresh-machine setup path
 (`setup.ps1` — winget + venv, Smart App Control safe), GUI launches (Qt
 offscreen smoke test + live construction), URL → queue → five-stage pipeline
 → five export formats + combined transcript, 25/25 unit tests passing,
 benchmark video processed successfully.
+
+---
+
+# Version 0.2 — speaker identification & output simplification (July 7, 2026)
+
+## 8. Research
+
+Key finding (verified by inspecting the installed pyannote 4.0.7 source):
+the community-1 pipeline's `DiarizeOutput` **always includes
+`speaker_embeddings`** — one 256-dim WeSpeaker ResNet34 centroid per
+detected speaker, row-aligned with `SPEAKER_XX` labels (zero-padded rows for
+speakers without clean frames). Cross-video recognition therefore reuses
+what diarization already computes: no new models, no extra GPU passes.
+Alternatives (speechbrain ECAPA, standalone wespeaker, Resemblyzer, NeMo
+TitaNet) all rejected — see DESIGN.md §5.1.
+
+## 9. Implemented
+
+- **Markdown-only default** (`export_formats: ["md"]`) with config-version
+  migration: an untouched v0.1 default (all five formats) migrates to
+  `["md"]`; a deliberately customized subset is preserved.
+- **voices.py**: `VoiceDB` (voices.sqlite3 — speakers + confirmed embedding
+  samples, per-source dedup, created/updated timestamps), cosine matching
+  (L2-normalized, best-sample-per-profile, dimension-mismatch guard),
+  per-video `speakers.json` name map, ≤5 s playback sample extraction
+  (stdlib `wave`, longest exclusive turn, cut while audio still exists),
+  `apply_rename` (map update → DB update → re-export of configured + already
+  present formats), reference-transcript parsing and overlap alignment.
+- **Pipeline**: after diarization — samples extracted, embeddings
+  auto-matched against the DB (manual entries never overwritten; unmatched
+  speakers keep `SPEAKER_XX`); stale pre-v0.2 diarization artifacts (no
+  embeddings) recomputed together with their merged artifact.
+- **UI**: clicking a completed video opens a dropdown per speaker with
+  current label/name (+ auto-match score), ▶ sample playback (winsound —
+  no new dependencies), and a rename field (Enter applies). Settings gained
+  recognition toggle + threshold.
+- **CLI**: `--seed <url> --reference <file>` and `--profiles`.
+- **Housekeeping fixes**: leftover `*.tmp*` artifacts from crashes are
+  removed at job start; `delete_after_queue` now cleans audio of *all*
+  finished jobs, not only the current session's.
+
+## 10. v0.2 testing
+
+- 44/44 unit tests (19 new: profile creation/persistence across reopen,
+  source dedup, matching thresholds/guards, auto-match semantics including
+  never-overwrite-manual and stale-auto cleanup, name resolution order,
+  sample extraction cap, full rename flow against real artifact files,
+  reference parsing/alignment, md-only default, optional formats,
+  re-export of existing formats, per-video name precedence).
+- GUI offscreen smoke test including speaker-menu code paths.
+- **Housekeeping audit** of live data: completed videos hold only JSON
+  artifacts + samples (~1.5 MB per 30-min video, kept deliberately for
+  GPU-free renames/re-exports); no stray `.tmp`/`.part` files; audio
+  correctly deleted by `delete_after_video`. Found one undocumented cache
+  dir (ZkvsKPdXRaA) — a video the user processed with v0.1 between
+  sessions; artifacts consistent, audio correctly cleaned up.
+- **Seeding**: reference transcript (144 turns) aligned to the reprocessed
+  benchmark video at 98 % purity for both hosts (Cliffe 747 s overlap,
+  Stuart 207 s); profiles created; benchmark transcripts re-exported with
+  real names.
+
+(§11: recognition benchmark results)

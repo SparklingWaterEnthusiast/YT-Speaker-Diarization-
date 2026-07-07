@@ -68,11 +68,37 @@ residential connections with the default courtesy delays.)
 
 | Key | Default | Notes |
 |---|---|---|
-| `export_formats` | `["md","json","txt","srt","vtt"]` | Any subset |
-| `combined_transcript` | `true` | One combined MD+JSON per finished queue (multi-video runs) |
-| `speaker_names` | `{}` | Relabel speakers at export, e.g. `{"SPEAKER_00": "Cliffe Knechtle", "SPEAKER_01": "Stuart Knechtle"}` |
+| `export_formats` | `["md"]` | Markdown only by default (v0.2). Add any of `json`, `txt`, `srt`, `vtt` in Settings for extra formats |
+| `combined_transcript` | `true` | One combined transcript per finished queue (multi-video runs), in the configured formats (md/json) |
+| `speaker_names` | `{}` | Global fallback relabeling, e.g. `{"SPEAKER_00": "Cliffe Knechtle"}`. Per-video names from recognition/renaming take precedence |
 | `remove_hallucinations` | `true` | Drops known Whisper spam ("Thanks for watching!") **only** when it occurs in diarized silence |
 | `paragraph_gap_seconds` | `3.0` | Pause length that starts a new paragraph within a speaker turn |
+
+## Speaker recognition (v0.2)
+
+| Key | Default | Notes |
+|---|---|---|
+| `recognition_enabled` | `true` | Match detected voices against the voice database after diarization and name confident matches automatically |
+| `recognition_threshold` | `0.6` | Minimum cosine similarity for an automatic match. Calibrated on the target channel: same speaker across videos scored ≥0.7, different speakers ≤0.4. Raise toward 0.7 to be stricter, lower with care |
+
+How it works (details in DESIGN.md §5): diarization already computes one
+voice embedding per detected speaker; these are compared against
+`Documents\YTScribe\voices.sqlite3`. Matches at or above the threshold get
+the stored name (shown as `auto` with the score in the speaker editor);
+everything else keeps its `SPEAKER_XX` label. Only *confirmed* voices enter
+the database — via the rename dropdown on a completed video, or via seeding:
+
+```powershell
+# create/refresh profiles from a professionally diarized transcript
+.\run.ps1 --seed "https://www.youtube.com/watch?v=fZZXVNt1gk0" --reference benchmark\reference_fZZXVNt1gk0.txt
+# inspect the database
+.\run.ps1 --profiles
+```
+
+The reference file needs lines of the form `Name (M:SS-M:SS): text`;
+placeholder labels (`speaker_2`, …) are ignored. Renaming a speaker rewrites
+that video's transcript files in place (all formats present on disk plus the
+configured ones) — no re-download, no GPU work.
 
 ## Hardware
 
@@ -86,5 +112,26 @@ residential connections with the default courtesy delays.)
 |---|---|
 | Config | `Documents\YTScribe\config.json` |
 | Job queue/state | `Documents\YTScribe\jobs.sqlite3` |
+| Voice profiles (v0.2) | `Documents\YTScribe\voices.sqlite3` |
 | Per-video cache | `<cache_dir>\<video_id>\` |
 | ML models (one-time download) | `%USERPROFILE%\.cache\huggingface` |
+
+## Housekeeping (what stays on disk and why)
+
+Per completed video, the cache keeps only small JSON artifacts plus voice
+samples — audio is removed according to `cache_policy`:
+
+| File | ~Size (30-min video) | Purpose |
+|---|---|---|
+| `meta.json` | 2 KB | title/date/URL for exports |
+| `transcript.json`, `merged.json` | ~0.5 MB each | re-export & renames without re-transcribing |
+| `diarization.json` | ~50 KB | speaker turns + voice embeddings |
+| `speakers.json` | <1 KB | per-video name assignments |
+| `samples\SPEAKER_XX.wav` | ~160 KB each | ≤5 s playback in the speaker editor |
+
+That is roughly 1.5 MB per 30-minute video (≈2 GB for a 1,400-video
+channel) — deliberately kept so speakers can be renamed and transcripts
+regenerated at any time without any re-processing. Deleting a video's cache
+folder is safe; it just forfeits those abilities until reprocessed.
+Half-written `.tmp` files from crashes are removed automatically the next
+time the video is processed.

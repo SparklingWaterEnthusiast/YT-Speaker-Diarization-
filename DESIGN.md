@@ -208,12 +208,68 @@ Failures at any stage mark the job `failed` with the error recorded, move it
 to the retry queue, and processing continues with the next item. Nothing a
 single bad video does can stop a 1,400-video run.
 
-## 5. Known limitations / future work
+## 5. Version 0.2 — speaker identification (July 2026)
 
-- Speaker labels are per-video (`SPEAKER_00`…). Cross-video speaker identity
-  (recognizing "Cliffe Knechtle" across 1,400 videos) would require a speaker
-  embedding gallery — pyannote exposes embeddings, so the hook exists; out of
-  scope for v1. Manual per-video rename is supported at export via config map.
+### 5.1 Embedding source — pipeline centroids (selected)
+
+Cross-video speaker recognition needs one voice embedding per detected
+speaker. Candidates evaluated:
+
+| Candidate | Verdict |
+|---|---|
+| **community-1 pipeline centroids** | **Selected.** pyannote 4's `DiarizeOutput.speaker_embeddings` already returns one 256-dim WeSpeaker ResNet34 centroid per speaker — the very vectors the diarizer clustered on, computed on overlap-excluded (clean, single-speaker) frames. Verified in pipeline source: centroid rows are re-ordered to match `labels()` order (`SPEAKER_00`…), zero-padded when a speaker has no centroid (guarded in code). **Zero new models, zero extra GPU passes, and recognition lives in the same embedding space as diarization.** |
+| speechbrain ECAPA-TDNN | Rejected: adds the speechbrain dependency chain and a second inference pass per video; VoxCeleb-grade accuracy comparable to WeSpeaker ResNet34; no benefit that justifies a parallel embedding space. |
+| wespeaker (standalone) | Rejected: same model family as what the pipeline already runs — pure redundancy. |
+| Resemblyzer (GE2E) | Rejected: 2019-era accuracy, clearly below current models. |
+| NVIDIA TitaNet | Rejected: NeMo on native Windows again. |
+
+Matching is **cosine similarity** (embeddings L2-normalized first) against
+every stored sample of every profile, taking each profile's best score. A
+match requires `score >= recognition_threshold` (config; default calibrated
+empirically in §5.4 — cross-video same-speaker pairs scored ≥0.7, hardest
+different-speaker pairs ≤0.4 in the target channel's data). Below threshold,
+labels stay exactly `SPEAKER_XX` — names are never invented.
+
+### 5.2 Voice database
+
+`Documents\YTScribe\voices.sqlite3` (separate file from the job queue, so
+clearing one never touches the other):
+
+    speakers(id, name UNIQUE, created_at, updated_at)
+    samples(id, speaker_id, embedding BLOB float32, dim, source, created_at)
+
+A profile holds N confirmed embeddings (one per confirmed video appearance;
+`source` = "video_id:SPEAKER_XX" is unique so re-confirming replaces rather
+than duplicates). Only *confirmed* embeddings enter the DB — from manual
+renames or reference-transcript seeding, never from automatic matches, so a
+borderline auto-match can never poison a profile (no drift).
+
+### 5.3 Per-video name resolution
+
+Diarization saves per-speaker embeddings into `diarization.json`; right after
+that stage (while `audio.wav` still exists) the pipeline extracts one ≤5 s
+playback sample per speaker (`cache/<id>/samples/SPEAKER_XX.wav`, longest
+exclusive turn, center window, stdlib `wave` — no ffmpeg) and runs
+auto-matching, writing `cache/<id>/speakers.json`:
+
+    {"SPEAKER_00": {"name": "Cliffe Knechtle", "source": "auto", "score": 0.81}}
+
+Display names resolve as: speakers.json (manual > auto) → config
+`speaker_names` → raw label. Manual renames (UI dropdown on any completed
+video, or after auto-match correction) update speakers.json, re-export every
+transcript format present on disk plus the configured ones, and add the
+video's embedding to the profile. Exports are pure functions of cached
+artifacts, so renaming needs no GPU and no re-download.
+
+### 5.4 Seeding from a reference transcript
+
+`--seed <url> --reference <file>` parses a professionally diarized transcript
+("Name (M:SS-M:SS): text" lines), aligns each detected speaker to reference
+speakers by temporal overlap (real names only — `speaker_N` placeholders are
+ignored), and creates profiles for alignments with ≥60 % purity and ≥10 s of
+overlap. Used to seed Cliffe & Stuart Knechtle from the benchmark video.
+
+## 6. Known limitations / future work
 - Age-restricted/member-only videos need `cookies_from_browser` (documented).
 - Whisper hallucinations on long music/silence stretches are mitigated by VAD
   + `condition_on_previous_text=False` + cleanup rules, not eliminated.

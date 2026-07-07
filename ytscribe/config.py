@@ -52,7 +52,8 @@ class Config:
     rate_limit: str = ""  # e.g. "2M" to cap download bandwidth
 
     # --- output ---
-    export_formats: list[str] = field(default_factory=lambda: list(EXPORT_FORMATS))
+    # Markdown only by default (v0.2); other formats are opt-in via Settings
+    export_formats: list[str] = field(default_factory=lambda: ["md"])
     combined_transcript: bool = True
     # optional relabeling applied at export time, e.g. {"SPEAKER_00": "Cliffe"}
     speaker_names: dict[str, str] = field(default_factory=dict)
@@ -60,6 +61,14 @@ class Config:
     # --- transcript cleanup ---
     remove_hallucinations: bool = True
     paragraph_gap_seconds: float = 3.0
+
+    # --- speaker recognition (v0.2) ---
+    recognition_enabled: bool = True
+    # min cosine similarity for an automatic name match (see DESIGN.md §5.1)
+    recognition_threshold: float = 0.6
+
+    # bumped when defaults change in a way that needs migration on load
+    config_version: int = 2
 
     @property
     def output_path(self) -> Path:
@@ -118,6 +127,14 @@ def load_config() -> Config:
             for key, value in data.items():
                 if key in known:
                     setattr(cfg, key, value)
+            # v1 -> v2: default output became Markdown-only. Only migrate the
+            # untouched v1 default (all five formats); a deliberate subset is
+            # a user choice and is preserved.
+            if data.get("config_version", 1) < 2:
+                if sorted(cfg.export_formats) == sorted(EXPORT_FORMATS):
+                    cfg.export_formats = ["md"]
+                cfg.config_version = 2
+                save_config(cfg)
         except (json.JSONDecodeError, OSError):
             # corrupt config falls back to defaults; will be rewritten on save
             pass

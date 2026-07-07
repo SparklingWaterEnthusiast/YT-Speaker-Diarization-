@@ -1,0 +1,292 @@
+Reference diarization for https://www.youtube.com/watch?v=fZZXVNt1gk0
+Professionally speaker-diarized transcript provided July 2026.
+Lines matching "Name (M:SS-M:SS):" are parsed; placeholder labels
+(speaker_2, speaker_3, ...) are ignored for profile seeding.
+
+speaker_4 (0:00-0:08): Why can't there be multiple gods that we can believe in? And why can't there be multiple ways into heaven?
+
+Cliffe Knechtle (0:08-0:24): Good. There can be. But you see what you've got to answer, ma'am, is why would you believe in heaven? Have you ever been there? Neither have I. So in light of the fact you've never seen heaven, why would you as a thinking human being believe there's a heaven?
+
+speaker_4 (0:26-0:26): I mean
+
+speaker_4 (0:28-0:38): What through the Christian faith is is there not the the communication that if you are you do live by the faith, you get and you are forgiven, you go to heaven.
+
+Cliffe Knechtle (0:39-0:56): Yes. But ma'am, my being convinced that I'm going to heaven is based on one thing the trustworthiness of Jesus Christ. Because I've never been to heaven. So I don't know if there's a heaven or not from my experience. And I can promise you, Austin is not heaven.
+
+Cliffe Knechtle (0:58-1:26): Okay? It's a very nice place, but it's not heaven. Right. Okay? So you see, ma'am, when it comes to heaven, you're gonna have to trust somebody the same way I'm gonna have to trust somebody. And the question is, why do you trust whoever it is you trust? So because Muhammad contradicts Jesus, and because Jesus contradicts the avatars of Hinduism, and because the avatars of Hinduism contradict Siddhartha Gautama Buddha, and because they all contradict Baha'i faith.
+
+Cliffe Knechtle (1:28-1:40): You've got to be on the intellectual level of a cockroach if you say they're all saying the same thing. They're not, ma'am, they're contradicting each other. So either they're all wrong or one of 'em's right.
+
+Cliffe Knechtle (1:41-2:07): And now you've got to study the gospels for yourself, Matthew, Mark, Luke, and John, and you gotta ask yourself, does the evidence point to Jesus being the truth? And if it does, trust him. But if the evidence is that Christ is a liar, you'd be a fool to trust him. Do not trust Jesus if the evidence is he's a fraud, he's a hypocrite, he's a liar. Don't trust him. But if the evidence is he's totally reliable, if the evidence is he really did die and rise from the dead,
+
+Cliffe Knechtle (2:08-2:14): Then you can trust him, and he's the one who promises heaven to everybody who puts their faith in him.
+
+Cliffe Knechtle (2:21-2:36): A lot of my friends are atheists and agnostic, okay? And here's something that my atheist and agnostic friends have to acknowledge if they're being intellectually consistent. Because they believe there's no heaven, no day of judgment.
+
+Cliffe Knechtle (2:37-2:58): That has big implications for now, today. And the implication is what you and I do with our lives is ultimately meaningless. Why? Where are Hitler and Mother Teresa if there is no heaven and no hell? Where are Hitler and Mother Teresa? The same place. The fertilizer pit, they're decomposing.
+
+Cliffe Knechtle (2:59-3:27): Which means ultimately it does not matter whether you are Adolf Hitler the second or whether you're Mother Teresa the second, because we're all going to the same place, the fertilizer pit. You see, Jesus says, No, there is eternity out there, and there is a heaven and a hell, and there's a day of judgment, which means the decisions that you make today are really significant. They really matter. And you are really valuable.
+
+Cliffe Knechtle (3:28-3:39): 'Cause God wants you to live for eternity with him in heaven. And becoming fertilizer is not God's plan for you and w desire for you. Does that make any sense? Yeah,
+
+speaker_4 (3:39-3:40): of course.
+
+Cliffe Knechtle (3:40-3:42): Thank you so much for raising that. Yes, sir.
+
+speaker_3 (3:42-3:50): There's been an a couple issues of things that you've been saying that I have questions with but I'm just gonna do a quick quick short one. One my one of my main questions that I always have
+
+speaker_3 (3:51-4:03): Yeah. Um it's just uh given what you touted earlier, a tri omni god, a omnibenevolent, omnipotent, omniscient, just all powerful, all knowing, all caring, um, how do you explain the existence of evil and suffering?
+
+Stuart Knechtle (4:03-4:04): You bet.
+
+Cliffe Knechtle (4:04-4:19): Very slowly, having to acknowledge I can't give you a complete answer. I do not know ultimately why God allowed evil, suffering, and death. But here's my first point. If you're an atheist or if you're an agnostic,
+
+Cliffe Knechtle (4:20-4:23): What is your solution to the problem of evil and death?
+
+speaker_3 (4:24-4:25): My solution to the evil
+
+Cliffe Knechtle (4:25-4:32): The solution. What is your solution to the problem of evil and death? If you're an atheist, if you're an agnostic.
+
+speaker_3 (4:33-4:39): I mean solution for everybody is just to be as good as possible. I mean everybody should aim for being good.
+
+Cliffe Knechtle (4:41-4:42): True according to their own definition of
+
+speaker_3 (4:42-4:42): good, right?
+
+Cliffe Knechtle (4:50-5:03): Well remember the atheist or agnostic says either there is no God or I don't know whether there's a God. Yeah. So good is not defined by God if you're an atheist. Yeah. If you're an atheist, def good is defined by your culture or by the power elite or by yourself or by majority opinion.
+
+speaker_3 (5:04-5:10): It could be just defined as good, it's just good just exists. Whether God or not.
+
+Cliffe Knechtle (5:11-5:13): How can good just exist?
+
+speaker_3 (5:14-5:19): Good good could possibly 'cause I I I don't know if there's a God or not. Mm-hmm. Um
+
+speaker_3 (5:20-5:32): But I mean, if there is such a thing as a a God that is out of time, like that is eternal, why can't other concepts like good just be out of time and eternal? Just a thing that exists like God.
+
+Cliffe Knechtle (5:33-5:39): Okay. Sir, good is an intangible value. You cannot see good.
+
+speaker_3 (5:40-5:41): You can't see God either.
+
+Cliffe Knechtle (5:42-5:44): Exactly. You cannot measure good, right? You
+
+speaker_3 (5:44-5:48): can't measure God. It could exist eternally, just like it could just be God
+
+speaker_3 (5:49-6:02): It could just be God it could not be just God, it could just be the existence of good and evil that it just exists in the world. But given a tri omni God who's all powerful and all caring, why evil and suffering exists right doesn't make sense to me.
+
+Cliffe Knechtle (6:02-6:04): Okay, good. I and we're you hang with me and we'll go.
+
+speaker_3 (6:06-6:06): In order
+
+Cliffe Knechtle (6:06-6:19): to understand goodness, there has to be a mind. This tree has no understanding of good. This cement has no understanding of good. See, could good can't just exist.
+
+Cliffe Knechtle (6:20-6:32): Because goodness requires definition. And it's an intangible value that you can't measure. You can't grab goodness. Which means you gotta have a mind involved in defining
+
+speaker_3 (6:32-6:36): what is good. If we're going by that definition, then what what is defining God?
+
+Cliffe Knechtle (6:38-6:39): We'll get to that.
+
+speaker_3 (6:39-6:49): All the arguments you could give for God could also go for good just in a as a general concept. Uh uh. It could just exist eternally out of time, unmeasurable. Um
+
+Cliffe Knechtle (6:50-7:03): No sir. That's not fair. I if g if God exists, God doesn't depend on anybody. If goodness as an intangible value exists, it depends on a mind.
+
+Cliffe Knechtle (7:07-7:08): Obviously. That's
+
+speaker_3 (7:08-7:14): right. It could c uh like coming from a different view viewpoint outside of trying to see where you know
+
+speaker_3 (7:14-7:30): the reasoning for things, you could say that it it could be what we define as God soci like societally could just be the existence of just that good in the same context of eternal and timeless and all that. Like if
+
+Cliffe Knechtle (7:30-7:36): there is no God, goodness is not eternal. Because goodness de demands a mind to define it.
+
+speaker_3 (7:37-7:46): Which means if then in giving that same argument, then what mind defines God? There would be something above him if something has to make him or define him or
+
+Cliffe Knechtle (7:47-7:51): No. God can be an eternal being without beginning, without end.
+
+speaker_3 (7:52-7:56): I don't think you see my point because time good just goodness could be the same thing. You're not
+
+Cliffe Knechtle (7:56-7:57): listening, sir.
+
+speaker_3 (7:57-7:59): You're giving goodness a different definition. No, sir,
+
+Cliffe Knechtle (7:59-8:19): you're not listening to me, and I don't appreciate it. I told you flat out, and I think you're smart enough to get this point. Goodness define demands some mind to define it. The tree, the cement, has no ability to understand goodness. You've got to have a mind.
+
+Cliffe Knechtle (8:21-8:22): Do you see that or do you disagree with me?
+
+speaker_3 (8:24-8:34): I think we're coming to different definitions of good, because then like there's still outside of that though, given your definition of good, still why does evil or suffering exist?
+
+speaker_3 (8:37-8:40): I'm just saying, given yours, why does evil and suffering exist? Alright,
+
+Cliffe Knechtle (8:40-8:41): we'll get all right.
+
+Cliffe Knechtle (8:43-8:49): But sir, I I got a real problem with your thinking, alright? I don't think you're being honest with yourself. That's not fair.
+
+Cliffe Knechtle (8:50-9:20): You know very well that I've cornered you totally intellectually. You know very well that you cannot have goodness without some type of mind to create and define it. It's impossible. This does not define goodness. That does not define goodness. And that camera does not define goodness, and your glasses do not define goodness. Neither does your shirt, your pants, or your sneakers. You've got to have a mind to define goodness.
+
+Cliffe Knechtle (9:21-9:47): Sorry, you have no option intellectually. This has nothing to do with God, it has nothing to do with Jesus, it has to do with simply thinking fairly. Alright, moving on to next. Didn't take questions. Your point is, okay, but if this good God exists, why is there evils and suffering? It's real simple, sir. If an all powerful God chooses to partially limit his power by giving you a free will, by giving me a free will.
+
+Cliffe Knechtle (9:48-10:17): Then if I go up to her, slap her in the face and say, God made me do it, what am I? A liar, a total liar. God gave me a hand for a purpose to respect this woman, to love this woman. But because I have a free will, I don't have to respect her, I don't have to love her, I can steal her backpack, I can smack her around, I can abuse her. And if anybody says, God made me do it, they are a liar.
+
+Cliffe Knechtle (10:18-10:36): Flat out. So, why does evil exist? Evil exists because God limited his power, he's all powerful, but he limited his power by choosing to give her a free will, me a free will, all of us a free will. Does that make any sense?
+
+speaker_3 (10:37-10:43): It kind of answers it for humanity, but suffering also suffering also exists just in the animals. Good. Why
+
+speaker_3 (10:44-11:07): Does a zebra deserve to get his throat crushed to death by a lion? Like how is that caring or just like coming from a Christian standpoint, we have sinned as humans coming from the Christian standpoint, so we are you know we have free will and we can make mistakes and all that. Yep. But why not why have animals just, you know, not have their perfect little ecosystem where nothing has to suffer and only humans suffer?
+
+Cliffe Knechtle (11:07-11:10): Very good. Now we're thinking, all right?
+
+Cliffe Knechtle (11:11-11:25): So, Genesis chapters one and two. God creates a good world. God created this and God saw that it was good. God created that and God saw that it was good. God created this and God sees that's good. So when God created, he did a good job. No evil.
+
+Cliffe Knechtle (11:25-11:52): But Genesis chapter 3 records how human beings rebel against God. And one of the consequences of human beings telling God, get lost, get out of here, is God honors our free will, takes a step back from planet Earth, and nature unravels. And so you're absolutely correct, sir. Animals suffer, I have suffered, we all will suffer. Not because God is sicking us.
+
+Cliffe Knechtle (11:53-12:05): But because God created a world with free will, people with free will, we chose him to tell him to get out. When he gets out, so because chaos fills the gap, genetic breakdown, death occur.
+
+speaker_3 (12:06-12:16): Because so because humans decided to reject God, God punished the animals. One of the consequences. It seems uncaring and unjust given a try on the God.
+
+Cliffe Knechtle (12:16-12:18): No, it's a c it's an issue of consequences.
+
+Cliffe Knechtle (12:18-12:21): Who put Texas State together? Did they do it last summer?
+
+speaker_3 (12:21-12:26): Well the consequence should go to the humans that did it. You don't punish someone else for somebody else's misdoings.
+
+Cliffe Knechtle (12:26-12:38): That would be a nice way for things to happen. But unfortunately, because I have free will, if you're a husband and I smack you around, it might affect how you treat your wife when you go home tonight.
+
+Cliffe Knechtle (12:40-12:51): might affect how you treat your kids when you go home tonight. You see for me to think that well I've got free will and it's just me and it's just you and there are no consequences to whether the way I exercise my free will that's a lie.
+
+speaker_3 (12:51-13:06): Total lie. Well how I would interact with animals is one thing, but how animals should interact with each other why is suffering exists between animals, not from humans to animals, but between animals suffering exists. Why are they being punished for suffering between themselves
+
+Cliffe Knechtle (13:07-13:08): if they didn't
+
+speaker_3 (13:08-13:08): do anything wrong.
+
+speaker_3 (13:09-13:09): Correct,
+
+Cliffe Knechtle (13:09-13:35): you're absolutely correct. They didn't do anything wrong. The same way, little babies that I have to bury didn't do anything wrong. But they're born into an unfair world where birth defects occur, and so babies die. Not because they've done something wrong. They have not done anything wrong. But they are born into an unfair, unjust, messed up world.
+
+Cliffe Knechtle (13:38-13:39): Thanks for raising those issues. Yes, ma'am.
+
+speaker_4 (13:40-13:41): They're also born with original sin though.
+
+Cliffe Knechtle (13:42-13:45): Which Okay, what does that mean? My good Catholic friend, what does that mean?
+
+speaker_4 (13:46-14:01): Um it means as a consequence of a correct me if I'm wrong, but as a consequence of Adam and Eve eating the apple, all the following children would be born with this original sin that would have been an effect of mankind previously.
+
+Cliffe Knechtle (14:02-14:04): Correct? Okay. Maybe.
+
+speaker_4 (14:06-14:18): Um at least also the way I was brought up was that um if you were not baptized or had your original sin reversed, you would not be able to make it to heaven. Yeah, I totally
+
+Cliffe Knechtle (14:18-14:21): disagree with that. I don't think there's any biblical basis for that. But
+
+speaker_4 (14:21-14:25): wouldn't like original sin be a spiritual birth defect? Good.
+
+Cliffe Knechtle (14:25-14:34): Ooh, now I think we're on to something here. Okay. So what on earth is original sin? Original sin is simply this.
+
+Cliffe Knechtle (14:35-15:04): I am born with a readiness to sin factor. Doesn't mean that everything I do is evil. My atheist friends do a lot of good. They've got a conscience. But all of us have sinned. Every atheist, every agnostic, every Christian, Jew, Buddhist, Hindu, we all have sinned. Part of the reason we have sinned is because we're born with a readiness to sin factor. Let me give you an example. When I was four years old, I was in a sandbox playing, and my friend had the audacity to hurt me.
+
+Cliffe Knechtle (15:05-15:27): So very naturally I took the m up the metal truck and I said, Really? Bam. Never seen that behaviour model before, but I very naturally took up the metal truck, slammed it on my playmate's head, and it wasn't pretty. I'm a sinner. That's my son over there walking this way.
+
+Cliffe Knechtle (15:28-15:55): He used to sit on a baby chair. I would put a glass of grape juice in front of him, and I would say, Stuart, do not knock this glass of grape juice off this tray. And with a smile from this ear to this ear, he would backhand that glass of grape juice off the tray. He was born a sinner, the same way his old man, me, was born a sinner. Now what does that mean? It means we have a readiness to sin factor.
+
+Cliffe Knechtle (15:58-16:24): But we cannot blame our sinful nature for what we do, because we still have a free will. So if I slap her and you say, wait a second, Cliffe, what'd you just do to her? Why'd you do it? And I say, because of my sinful nature. That's a cop out. Because I still have a will. And you see, here's the challenge. The challenge for me is to overcome my sinful nature with my will and make responsible decisions.
+
+Cliffe Knechtle (16:26-16:33): And that's why the whole line of thinking at Texas State University, which is, I was born with this desire, therefore it's good. It's a croc.
+
+speaker_4 (16:33-16:42): Well, can I ask you then? Do you believe that babies are born with an understanding of good versus evil, or do you believe that it was taught by human nature?
+
+Cliffe Knechtle (16:42-16:53): Good. Very good question. I'll answer this and then, Stuart, you answer it. I am convinced that my little granddaughter, who is six months old, his daughter.
+
+Cliffe Knechtle (16:54-17:23): Has no understanding of what good and evil are. But I am convinced that when she comes of age, and I think for different people that's different, she will develop her own understanding of good and evil. Will that understanding be heavily influenced by her environment? Yes, ma'am. Will her understanding of good and evil be limited by her environment? No. Once again, smack.
+
+Cliffe Knechtle (17:23-17:52): Sorry you're getting hit so many times today. You ask me, Cliff, why'd you do it? And I say to you, because I grew up in an environment that taught me that women who wear this color sweatshirt deserve to be smacked. It doesn't cut it. Because although my environment taught me that, I still have a conscience, a rational mind, and I am responsible before God to exercise that and to contradict my culture, to contradict my environment.
+
+Cliffe Knechtle (17:53-17:58): When I begin to realize my environment is wrong. Let me give you one quick example.
+
+Cliffe Knechtle (17:59-18:21): I played major college basketball. I was the worst guy on the team. I had good seats for every game. But I can promise you, almost not everybody, but almost every guy who I played college basketball with had a very clear understanding of what human sexuality was all about. It was all about getting as many good looking women into bed with them as they could.
+
+Cliffe Knechtle (18:22-18:50): And so I had to exercise my conscience and my rational thinking. I had to ask, is that why God gave me my sexuality to have sex with as many good looking women as I can? And was it tempting to follow their example? I mean, that's the environment. I mean, shoot, we flew on a jet to different played against UCLA, St. John's, NC State, Wake Forest. I mean, we we, you know, we were high flying.
+
+Cliffe Knechtle (18:51-19:20): Okay, and so we all knew what we did at night. Alright? So I had to make a decision. Is that the right way to live? Is that the right way to treat women? Is that the right way to express my sexuality? Or has God created my sexuality for a different reason? So I had to contradict my culture. And guess what? I've learned to respect people who contradict their culture and don't support racism. I worked with some skinheads.
+
+Cliffe Knechtle (19:21-19:36): And those skinheads grew up in a culture that said white superiority is clear. But there's some skinheads who said, No, it's wrong, and I'm not gonna follow my culture. So that's how I think through that issue. All right, Stuart, what do you think?
+
+Stuart Knechtle (19:36-19:38): Well yeah, I would just add to that. For
+
+Cliffe Knechtle (19:39-19:39): it
+
+Stuart Knechtle (19:39-19:45): because we've talked so much about kind of the moral ethic side of things, it's important again to remember.
+
+Stuart Knechtle (19:46-20:15): That the Christian faith is not about just be a good person, somehow you'll get into heaven. Just be a good person. You know, I'm a good person, so I'm in. No, to your question, many babies are born into whether it's a crack baby or whether it's a baby born into a very religious home or a Christian, an Amish baby, let's just say. They're typically born into homes that are very tender, loving, as long as they don't leave, right? And they get excommunicated. Tender, loving, they get taught ethics. See, when you become a Christian.
+
+Stuart Knechtle (20:17-20:46): Cynical, Pharisaical, judgmental Christians will say, Oh, well, you should be, say, nine out of ten on the ethic standard wrong, in terms of you should be a great person. But no, Christ understand that the baby born into an Amish family versus the baby born into a crackpot family, this baby, when they come to know God from a very young age, they're gonna be higher ethically in terms of how they live than this one.
+
+Stuart Knechtle (20:46-21:00): Who is say probably ethically living a p a pretty messed up life, at least at first, and yet they both have eternal life because they've accepted Christ. It's not like somehow this one is gonna be higher in heaven, like there's levels than this one. But then
+
+speaker_4 (21:00-21:03): why give original sin to something that doesn't have even have a working conscience
+
+Stuart Knechtle (21:03-21:08): yet? I'm glad I heard you say give original sin one more time. Because I say that earlier.
+
+Stuart Knechtle (21:10-21:31): Because God doesn't give original sin. See, I debated an atheist on YouTube not too long ago. He's a comedian. And that's what he kept pushing me on. Out of the book of Isaiah, briefly talks about how God creates evil. But if you look at the interpretation, what it means is God judges different people groups on when they have done tremendous evil.
+
+Stuart Knechtle (21:32-21:59): So just like that passage with original sin, God doesn't give us original sin. He gives us free will, just like with Satan, to decide whether to worship him, to love him, to have a loving relationship with him, or to just go our own way, to live for ourselves, to live any old way we want. And then that, based off of Genesis 3 and what happened in the garden with Adam and Eve, is what they decided that were God, we're gonna flip you off, we could care less about you.
+
+Stuart Knechtle (22:00-22:28): Then they lived their own kind of way and original sin started. But to your point, absolutely, we're born into a messed up world, so so we do have a readiness to sin factor, I believe you said that, from the earliest of ages. But babies will also be in heaven. Because when David's baby dies, the wife, his wife was Bathsheba, he says, I will go to you, you will not come to me. So babies will be in heaven, based off of the question earlier on suffering.
+
+Cliffe Knechtle (22:29-22:32): Does that make any sense? Yes. Thank you so much for raising that. Yes, sir.
+
+speaker_3 (22:33-22:33): Um
+
+speaker_2 (22:34-22:47): so I believe in God and I turned Christian and I know it's only because I'm American and obviously the main religion in America is Christian. Yeah. So that's why I lean towards Christian. But I have a question. So
+
+Cliffe Knechtle (22:47-22:57): not a good reason to lean towards Christian, okay? I appreciate your honesty and your your ability to analyze yourself. Yeah. Please do not believe in Jesus Christ because you grew up in America. Not a good reason. No,
+
+speaker_2 (22:57-22:58): no. I so I've
+
+speaker_2 (22:59-23:14): I believe in God. Good. And I didn't before. Right. But I'm still stuck on this whole Jesus thing. Yes. Because if he's sinless or if he's sinless, like is there a possibility that there will be another person born that's sinless? Or is Jesus the only one?
+
+Cliffe Knechtle (23:15-23:23): Well Jesus is the only one that I know of so far who's been born sinless. And I think it's highly unlikely that someone will be born sinless.
+
+speaker_2 (23:23-23:32): I guess my main question is is I can believe in God because I know I can't see him factually, but I have a belief in him. Yes. But I don't know if I can believe in Jesus because he was on earth. Yes.
+
+Cliffe Knechtle (23:33-23:33): And
+
+speaker_2 (23:33-23:39): not everybody was there to prove whether he was sinless or not. Like he wasn't surrounded by people twenty-four-seven said. Good
+
+Cliffe Knechtle (23:39-23:44): point. Very good point. So maybe Jesus did sin at some point. But I have to follow the evidence.
+
+Cliffe Knechtle (23:44-24:05): And the evidence is the Apostle John lived closely with Christ for three years. And in 1 John, John writes, In him is no sin. So you're right, John didn't live with Jesus intimately for three 33 years. Just for three years. Yeah. But I can promise you, if a dude lives with Jesus for three years, and can honestly say, I've never seen the guy sin.
+
+Cliffe Knechtle (24:06-24:21): That's pretty impressive. Then in John chapter eight, Jesus looked into the faces of his enemies and asked them, Which one of you can prove me guilty of sin? And his enemies were silent. Whoa. I can promise you my enemies can point out many times that I have sinned. Stuart?
+
+Stuart Knechtle (24:22-24:44): Tacitus, Pliny the Younger, Josephus, many of these external sources, he was talking about internal sources with the Gospels, talk about not so much Jesus. Jesus was talked about in a way where he was a magician, Josephus talked about, how he was nasty. But then other sources contradicted him, saying that he just hated Christianity. That's why he was saying that about Jesus.
+
+Stuart Knechtle (24:45-25:05): So I would look more so at his followers to talk about the sinlessness. Because they were known for a few different things. One, against infanticide. They were pulling babies off of garbage heaps. Two, egalitarianism. They treated everybody equally. Three, they were made up mainly of the of slaves who were coming into the church. Fourthly, they were non retaliatory.
+
+Stuart Knechtle (25:05-25:15): They were known in a very weird kind of way to actually not get revenge on other people groups, which was huge during that day. So I'd look at Christians as the evidence for Christ. Okay,
+
+Cliffe Knechtle (25:15-25:18): now I like you a lot. So you're being honest, so keep going. Yeah,
+
+speaker_2 (25:18-25:32): so maybe this is just like the belief part, but I have a hard time believing that part. Like I I I I can believe in God because I know I can never see it. That's I mean we can never see God. Well, we can never see him like visually.
+
+Cliffe Knechtle (25:33-25:34): Why you believe in God? Because you can't see him?
+
+Cliffe Knechtle (25:35-25:36): No,
+
+speaker_2 (25:36-25:49): no. I mean, I couldn't get too deep into it, but it would take a long time. But I'm saying like just reading the book and believing that there was a human that did that, I have a hard time believing that. Like a really hard time.
+
+Cliffe Knechtle (25:49-26:02): Okay, but I'm pleading with you. You've got a good mind, sir. You articulate and think well. Now remember, you can't believe in God simply because you believe in God. You believe in God because there's evidence. A lot of it's common sense. Well,
+
+speaker_2 (26:02-26:04): my evidence is that there is a objective truth.
+
+speaker_2 (26:05-26:07): Good. From that there is a good.
+
+Cliffe Knechtle (26:08-26:09): All right.
+
+speaker_2 (26:09-26:13): But I don't see Jesus in all that. I don't see the equation of that. Okay, but but
+
+Cliffe Knechtle (26:13-26:32): remember, we're starting off then with defining faith. You don't believe in God simply because you believe. No. You believe in God because there's evidence that God exists, right? Yeah. Okay, excellent. Now just do the same thing with Jesus. Read the gospels. Sure. Yes. And yes, it's gonna be different. The r the evidence that God exists is not historical.
+
+Cliffe Knechtle (26:33-27:02): It's philosophical. Right. You see order and design, points to a designer. You see a moral absolute, an objective moral, points to a moral lawgiver. Okay, you've got your evidence. Now when it comes to Jesus, it's not going to be philosophical. Why? Because he claimed to be God in human form. But I like that. Because that means we can historically analyze Christ. Which is why Paul writes in First Corinthians 15, if Jesus Christ is not risen from the dead, we're idiots for believing in him.
+
+Cliffe Knechtle (27:04-27:23): Because the veracity, the truthfulness of Christ is based on his claim, I'm gonna die and rise from the dead. Ooh, that was a big mistake, Jesus. What's the mistake? You gave us a way to verify you or falsify you. If you don't rise from the dead, you Jesus are a liar. But if you did rise from the dead, you Jesus are the truth.
+
+Stuart Knechtle (27:26-27:51): When you move to a new town, oftentimes the best place to meet people is in a church community. We are Grace Community Church located in New Canaan, Connecticut. We are a Bible-based non-denominational church. My name is Stuart Knechtle, one of the pastors at Grace Community Church. I'd like to invite you to one of our services. We have a 9 a.m., a 10 a.m. and a 4 30 p.m. Check us out more online at www.gracecommunity.info
+
+Stuart Knechtle (27:51-27:52): and hope to see you there.
