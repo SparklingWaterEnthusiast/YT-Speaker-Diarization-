@@ -225,10 +225,13 @@ speaker. Candidates evaluated:
 
 Matching is **cosine similarity** (embeddings L2-normalized first) against
 every stored sample of every profile, taking each profile's best score. A
-match requires `score >= recognition_threshold` (config; default calibrated
-empirically in §5.4 — cross-video same-speaker pairs scored ≥0.7, hardest
-different-speaker pairs ≤0.4 in the target channel's data). Below threshold,
-labels stay exactly `SPEAKER_XX` — names are never invented.
+match requires `score >= recognition_threshold` (default **0.7**). Empirical
+calibration on the target channel (July 2026): genuine cross-video matches
+scored 0.895–0.909 (including Cliffe across a 10-year-old video); audience
+questioners scored ≤0.48 against the hosts; the hardest impostor pair —
+Stuart against his father Cliffe's profile, similar voices in identical
+acoustic conditions — scored 0.58. The 0.7 default sits mid-gap. Below
+threshold, labels stay exactly `SPEAKER_XX` — names are never invented.
 
 ### 5.2 Voice database
 

@@ -186,4 +186,38 @@ TitaNet) all rejected — see DESIGN.md §5.1.
   Stuart 207 s); profiles created; benchmark transcripts re-exported with
   real names.
 
-(§11: recognition benchmark results)
+## 11. Recognition benchmark (against seeded profiles)
+
+Reprocessed three videos never seen by the profiles (one from 2016, ten
+years before the seed video):
+
+| Video | Speaker | vs Cliffe | vs Stuart | Result |
+|---|---|---|---|---|
+| #1016 (2016, ZkvsKPdXRaA) | host | **0.909** | 0.480 | ✔ named Cliffe Knechtle |
+| #1016 (2016) | questioner | 0.199 | 0.417 | ✔ left as SPEAKER_00 |
+| Everyone Worships (Mu_DIW7bX70) | host | 0.457 | **0.895** | ✔ named Stuart Knechtle |
+| Pluralism (1e-iolWove4) | host | 0.580 | **0.900** | ✔ named Stuart Knechtle |
+
+**3/3 correct recognitions, 0 false positives**, names verified in the
+exported Markdown. Calibration insight: the hardest impostor pair is Stuart
+vs his father Cliffe's profile (0.58 — related voices, same acoustics);
+genuine matches score ~0.90; unrelated speakers ≤0.48. Default threshold
+raised 0.6 → **0.7** to sit mid-gap. Stuart's profile achieved 0.90 matches
+from just 207 s of seeded speech.
+
+Additional verifications: manual rename on a pre-v0.2 video without
+embeddings degrades gracefully (transcripts renamed, DB untouched, note
+logged); playback samples present for every v0.2-processed video, play
+button disabled where none exist; `run_single` applies the cache policy
+(0 audio files left after the benchmark runs).
+
+## 12. v0.2 final state
+
+All v0.2 objectives verified: Markdown-only default with opt-in formats,
+researched and documented recognition design, persistent voice DB
+(name/embeddings/dates/sample counts), automatic post-diarization matching
+that never invents names, click-to-edit speaker dropdown with ≤5 s samples
+and instant transcript rewrite, Cliffe & Stuart profiles seeded from the
+professional reference at 98 % alignment purity, housekeeping audited with
+two real fixes (crash-orphaned .tmp files; delete_after_queue across
+sessions). 44/44 tests passing.

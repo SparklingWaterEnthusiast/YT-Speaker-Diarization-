@@ -64,8 +64,10 @@ class Config:
 
     # --- speaker recognition (v0.2) ---
     recognition_enabled: bool = True
-    # min cosine similarity for an automatic name match (see DESIGN.md §5.1)
-    recognition_threshold: float = 0.6
+    # min cosine similarity for an automatic name match. Calibrated on the
+    # target channel: genuine cross-video matches ~0.90, hardest impostor
+    # (Stuart vs his father Cliffe's profile) 0.58 (see DESIGN.md §5.1)
+    recognition_threshold: float = 0.7
 
     # bumped when defaults change in a way that needs migration on load
     config_version: int = 2

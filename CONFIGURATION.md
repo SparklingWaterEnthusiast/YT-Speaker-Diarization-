@@ -79,7 +79,7 @@ residential connections with the default courtesy delays.)
 | Key | Default | Notes |
 |---|---|---|
 | `recognition_enabled` | `true` | Match detected voices against the voice database after diarization and name confident matches automatically |
-| `recognition_threshold` | `0.6` | Minimum cosine similarity for an automatic match. Calibrated on the target channel: same speaker across videos scored ≥0.7, different speakers ≤0.4. Raise toward 0.7 to be stricter, lower with care |
+| `recognition_threshold` | `0.7` | Minimum cosine similarity for an automatic match. Calibrated on the target channel: genuine matches ~0.90, unrelated speakers ≤0.48, hardest impostor (father/son voices) 0.58. Lower with care — 0.7 already has wide margins |
 
 How it works (details in DESIGN.md §5): diarization already computes one
 voice embedding per detected speaker; these are compared against
