@@ -26,6 +26,45 @@
 └──────────────────────────────────────────────────────────────┘
 ```
 
+## Queue tabs (v0.2.1)
+
+Queues work like File Explorer tabs: each tab is an independent queue with
+its **own subfolder** in the output directory (the original "Main" tab
+writes to the output root).
+
+- **＋** creates a new tab (named with the current date/time by default).
+- **Double-click a tab** to rename it — the output subfolder is renamed
+  with it.
+- **Drag tabs** to reorder them; **right-click a tab** for rename, open
+  output folder, stop queue, and delete queue (deleting removes only the
+  list — transcripts and cached results stay on disk).
+- URLs you add always go to the **currently selected tab**.
+
+**Priority processing:** press Start on any tab. If another queue is
+already running, the new tab takes over as soon as the current video
+finishes, and the older queue resumes automatically when the new tab is
+done. That's the way to push one urgent video through while an
+866-video channel run is in progress: new tab → paste URL → Start.
+The same video may live in several tabs; re-processing it elsewhere is
+nearly instant because all pipeline results are cached.
+
+Each tab gets its own combined transcript (in its subfolder) when it
+finishes.
+
+## Managing the queue list
+
+The queue table behaves like a file manager:
+
+- **Multi-select** with Ctrl/Shift-click or Ctrl+A.
+- **Right-click** for actions on the selection: retry failed *and
+  cancelled* videos, reprocess completed ones, move up/down/top/bottom
+  (manual queue reordering), open the transcript or output folder, and
+  remove entries (Del key works too). Removing never deletes transcripts
+  or cached results.
+- **Double-click** a completed video to open the speaker editor.
+- The toolbar "Retry Failed" button requeues both failed and cancelled
+  videos across the current tab.
+
 ## Typical workflow
 
 1. **Paste a URL** — a single video (`watch?v=`), a playlist
@@ -75,8 +114,8 @@ labels — names are never guessed.
 
 ## Naming speakers (v0.2)
 
-**Click any completed video in the queue table.** A dropdown lists every
-detected speaker with:
+**Double-click any completed video in the queue table** (or right-click →
+"Edit speakers…"). A dropdown lists every detected speaker with:
 
 - the current label or recognized name (auto-matches show their similarity,
   e.g. `Cliffe Knechtle (SPEAKER_03) · auto 0.86`),

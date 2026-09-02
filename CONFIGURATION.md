@@ -8,7 +8,7 @@ file is the complete reference. Changes apply to the next queue run.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `output_dir` | `Documents\YTScribe\transcripts` | Where transcript files are written |
+| `output_dir` | `Documents\YTScribe\transcripts` | Root for transcript files. Since v0.2.1 every queue tab writes into its own subfolder here (named after the tab); the original "Main" tab writes to the root |
 | `cache_dir` | `Documents\YTScribe\cache` | Per-video working data (`cache/<video_id>/`) |
 | `ffmpeg_path` | `""` | Explicit ffmpeg.exe path; empty = auto-detect (PATH, then winget dirs) |
 

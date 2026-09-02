@@ -4,20 +4,22 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QCursor, QFont
-from PySide6.QtWidgets import (QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLabel, QLineEdit, QMainWindow, QMenu,
-                               QMessageBox, QPlainTextEdit, QProgressBar,
-                               QPushButton, QSplitter, QTableWidget,
-                               QTableWidgetItem, QVBoxLayout, QWidget,
-                               QWidgetAction)
+from PySide6.QtGui import QColor, QCursor, QFont, QKeySequence, QShortcut
+from PySide6.QtWidgets import (QAbstractItemView, QGridLayout, QGroupBox,
+                               QHBoxLayout, QHeaderView, QInputDialog, QLabel,
+                               QLineEdit, QMainWindow, QMenu, QMessageBox,
+                               QPlainTextEdit, QProgressBar, QPushButton,
+                               QSplitter, QTabBar, QTableWidget,
+                               QTableWidgetItem, QToolButton, QVBoxLayout,
+                               QWidget, QWidgetAction)
 
-from .. import resources, voices
+from .. import export, resources, voices
 from ..config import APP_DIR, load_config, save_config
 from ..db import JobStore
 from ..export import fmt_ts
@@ -27,6 +29,12 @@ from .workers import EnqueueWorker, RunWorker
 STATUS_COLORS = {"done": "#2e7d32", "failed": "#c62828", "running": "#1565c0",
                  "queued": "#616161", "cancelled": "#8d6e63"}
 MAX_LOG_BLOCKS = 2000
+
+
+def _safe_folder(name: str) -> str:
+    """Queue name -> filesystem-safe output subfolder name."""
+    folder = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", name)
+    return re.sub(r"\s+", " ", folder).strip()[:80] or "queue"
 
 
 class MainWindow(QMainWindow):
@@ -76,6 +84,28 @@ class MainWindow(QMainWindow):
         row.addWidget(self.add_btn)
         root.addLayout(row)
 
+        # queue tabs (File-Explorer style: one queue per tab)
+        tab_row = QHBoxLayout()
+        tab_row.setSpacing(0)
+        self.tabs = QTabBar()
+        self.tabs.setMovable(True)
+        self.tabs.setUsesScrollButtons(True)
+        self.tabs.setDocumentMode(True)
+        self.tabs.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tabs.currentChanged.connect(lambda _i: self.refresh_queue())
+        self.tabs.tabBarDoubleClicked.connect(self._rename_queue_tab)
+        self.tabs.customContextMenuRequested.connect(self._tab_context_menu)
+        self.tabs.tabMoved.connect(self._tabs_reordered)
+        add_tab = QToolButton()
+        add_tab.setText("+")
+        add_tab.setToolTip("New queue tab")
+        add_tab.clicked.connect(self._new_queue_tab)
+        tab_row.addWidget(self.tabs, 1)
+        tab_row.addWidget(add_tab)
+        root.addLayout(tab_row)
+        self._tab_queue_ids: list[int] = []
+        self._reload_tabs()
+
         split = QSplitter(Qt.Orientation.Vertical)
 
         # queue table
@@ -86,9 +116,14 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.cellClicked.connect(self._row_clicked)
-        self.table.setToolTip("Click a completed video to review or rename "
-                              "its speakers")
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._table_context_menu)
+        self.table.cellDoubleClicked.connect(self._row_double_clicked)
+        self.table.setToolTip("Double-click a completed video to edit its "
+                              "speakers; right-click for more options")
+        QShortcut(QKeySequence.StandardKey.Delete, self.table,
+                  activated=self._delete_selected)
         split.addWidget(self.table)
 
         # bottom: current item + log
@@ -181,7 +216,8 @@ class MainWindow(QMainWindow):
             return
         self.add_btn.setEnabled(False)
         self.statusBar().showMessage("Resolving URL…")
-        self.enqueue_worker = EnqueueWorker(url, self.cfg, self.store, self)
+        self.enqueue_worker = EnqueueWorker(url, self.cfg, self.store,
+                                            self.current_queue_id(), self)
         self.enqueue_worker.log.connect(self.log_line)
         self.enqueue_worker.done.connect(self._enqueue_done)
         self.enqueue_worker.failed.connect(self._enqueue_failed)
@@ -200,11 +236,19 @@ class MainWindow(QMainWindow):
         QMessageBox.warning(self, "Could not add URL", error)
 
     def start_queue(self):
-        if self.run_worker and self.run_worker.isRunning():
-            return
-        if not [j for j in self.store.pending() if j["status"] == "queued"]:
+        qid = self.current_queue_id()
+        queue = self.store.get_queue(qid) or {"name": "?"}
+        if not [j for j in self.store.pending(qid) if j["status"] == "queued"]:
             QMessageBox.information(self, "Queue empty",
-                                    "Add a video, playlist, or channel URL first.")
+                                    "This tab has no queued videos — add a "
+                                    "video, playlist, or channel URL first.")
+            return
+        self.store.set_queue_active(qid, True)
+        if self.run_worker and self.run_worker.isRunning():
+            # priority stack: the runner switches to this queue after the
+            # current video finishes, and returns to the old one when done
+            self.log_line(f"Queue '{queue['name']}' started — it takes "
+                          "priority after the current video finishes.")
             return
         self.cfg = load_config()  # pick up any settings changes
         self.run_worker = RunWorker(self.cfg, self.store, self)
@@ -241,19 +285,17 @@ class MainWindow(QMainWindow):
             self.run_worker.runner.cancel_current_job()
 
     def retry_failed(self):
-        n = self.store.requeue_failed()
-        self.log_line(f"Requeued {n} failed job(s).")
+        n = self.store.requeue_failed(include_cancelled=True)
+        self.log_line(f"Requeued {n} failed/cancelled job(s).")
         self.refresh_queue()
 
     def clear_finished(self):
-        n = self.store.clear_finished()
-        self.log_line(f"Removed {n} finished job(s) from the list.")
+        n = self.store.clear_finished(self.current_queue_id())
+        self.log_line(f"Removed {n} finished job(s) from this tab.")
         self.refresh_queue()
 
     def open_output(self):
-        path = self.cfg.output_path
-        path.mkdir(parents=True, exist_ok=True)
-        os.startfile(str(path))  # noqa: S606 — desktop app opening its own folder
+        self._open_folder(self._queue_out_dir(self.current_queue_id()))
 
     def open_settings(self):
         dlg = SettingsDialog(self.cfg, self)
@@ -263,15 +305,238 @@ class MainWindow(QMainWindow):
             if self.run_worker and self.run_worker.isRunning():
                 self.log_line("Note: model/device changes apply to the next queue run.")
 
-    # ------------------------------------------------------- speaker editor --
+    # ------------------------------------------------------------ queue tabs --
 
-    def _row_clicked(self, row: int, _col: int):
+    def current_queue_id(self) -> int:
+        idx = self.tabs.currentIndex()
+        if 0 <= idx < len(self._tab_queue_ids):
+            return self._tab_queue_ids[idx]
+        return 1
+
+    def _reload_tabs(self):
+        queues = self.store.queues()
+        self.tabs.blockSignals(True)
+        while self.tabs.count():
+            self.tabs.removeTab(0)
+        self._tab_queue_ids = []
+        for q in queues:
+            idx = self.tabs.addTab(q["name"])
+            self.tabs.setTabData(idx, q["id"])
+            self._tab_queue_ids.append(q["id"])
+        self.tabs.blockSignals(False)
+
+    def _new_queue_tab(self):
+        name = time.strftime("%Y-%m-%d %H.%M")
+        qid = self.store.create_queue(name, _safe_folder(name))
+        self._reload_tabs()
+        self.tabs.setCurrentIndex(self._tab_queue_ids.index(qid))
+        self.refresh_queue()
+        self.log_line(f"New queue '{name}' — double-click its tab to rename; "
+                      "its transcripts go to a subfolder of the same name.")
+
+    def _rename_queue_tab(self, index: int):
+        if not (0 <= index < len(self._tab_queue_ids)):
+            return
+        qid = self._tab_queue_ids[index]
+        queue = self.store.get_queue(qid)
+        if not queue:
+            return
+        name, ok = QInputDialog.getText(self, "Rename queue", "Queue name:",
+                                        text=queue["name"])
+        name = name.strip()
+        if not ok or not name or name == queue["name"]:
+            return
+        new_folder = _safe_folder(name)
+        old_folder = queue["folder"]
+        # keep transcripts together: rename the output subfolder with the tab
+        if old_folder:
+            old_path = self.cfg.output_path / old_folder
+            new_path = self.cfg.output_path / new_folder
+            if old_path.is_dir() and old_path != new_path:
+                try:
+                    old_path.rename(new_path)
+                except OSError as exc:
+                    QMessageBox.warning(
+                        self, "Folder not renamed",
+                        f"Queue renamed, but its output folder could not be "
+                        f"moved ({exc}). New transcripts will use the new "
+                        f"folder; existing files stay in '{old_folder}'.")
+        elif qid == 1:
+            # the original Main queue writes to the output root; renaming it
+            # moves only future exports into a subfolder
+            self.log_line("Note: existing transcripts of the Main queue stay "
+                          "in the output root; new ones go to the subfolder "
+                          f"'{new_folder}'.")
+        self.store.rename_queue(qid, name, new_folder)
+        self._reload_tabs()
+        self.tabs.setCurrentIndex(index)
+
+    def _tabs_reordered(self, *_):
+        # QTabBar has already moved the tab; persist the new visual order
+        new_ids = [self.tabs.tabData(i) for i in range(self.tabs.count())]
+        self._tab_queue_ids = new_ids
+        self.store.set_tab_order(new_ids)
+
+    def _tab_context_menu(self, pos):
+        index = self.tabs.tabAt(pos)
+        if index < 0:
+            return
+        qid = self._tab_queue_ids[index]
+        queue = self.store.get_queue(qid)
+        if not queue:
+            return
+        menu = QMenu(self)
+        menu.addAction("Rename…", lambda: self._rename_queue_tab(index))
+        menu.addAction("Open output folder",
+                       lambda: self._open_folder(self._queue_out_dir(qid)))
+        if queue["activated_at"]:
+            menu.addAction("Stop this queue",
+                           lambda: self._stop_queue(qid, queue["name"]))
+        menu.addSeparator()
+        act_del = menu.addAction("Delete queue…",
+                                 lambda: self._delete_queue_tab(index))
+        act_del.setEnabled(len(self._tab_queue_ids) > 1)
+        menu.exec(self.tabs.mapToGlobal(pos))
+
+    def _stop_queue(self, qid: int, name: str):
+        self.store.set_queue_active(qid, False)
+        self.log_line(f"Queue '{name}' stopped — remaining videos stay "
+                      "queued; press Start on its tab to continue.")
+
+    def _delete_queue_tab(self, index: int):
+        qid = self._tab_queue_ids[index]
+        queue = self.store.get_queue(qid)
+        jobs = self.store.all_jobs(qid)
+        if any(j["status"] == "running" for j in jobs):
+            QMessageBox.information(self, "Queue busy",
+                                    "This queue is processing — cancel the "
+                                    "current item first.")
+            return
+        if jobs:
+            answer = QMessageBox.question(
+                self, "Delete queue",
+                f"Delete queue '{queue['name']}' and its {len(jobs)} "
+                "list entries?\nTranscripts and cached results stay on disk.")
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        self.store.delete_queue(qid)
+        self._reload_tabs()
+        self.tabs.setCurrentIndex(max(0, index - 1))
+        self.refresh_queue()
+        self.log_line(f"Queue '{queue['name']}' deleted.")
+
+    def _queue_out_dir(self, qid: int) -> Path:
+        queue = self.store.get_queue(qid) or {}
+        folder = queue.get("folder") or ""
+        return self.cfg.output_path / folder if folder else self.cfg.output_path
+
+    def _open_folder(self, path: Path):
+        path.mkdir(parents=True, exist_ok=True)
+        os.startfile(str(path))  # noqa: S606
+
+    # ----------------------------------------------- table interactions --
+
+    def _selected_jobs(self) -> list[dict]:
+        rows = sorted({i.row() for i in self.table.selectedIndexes()})
+        return [self._row_jobs[r] for r in rows if r < len(self._row_jobs)]
+
+    def _row_double_clicked(self, row: int, _col: int):
         if row >= len(self._row_jobs):
             return
         job = self._row_jobs[row]
-        if job["status"] != "done":
+        if job["status"] == "done":
+            self._show_speaker_menu(job)
+
+    def _table_context_menu(self, pos):
+        jobs = self._selected_jobs()
+        if not jobs:
             return
-        self._show_speaker_menu(job)
+        menu = QMenu(self)
+        single = jobs[0] if len(jobs) == 1 else None
+
+        if single and single["status"] == "done":
+            menu.addAction("Edit speakers…",
+                           lambda: self._show_speaker_menu(single))
+            menu.addAction("Open transcript",
+                           lambda: self._open_transcript(single))
+        menu.addAction("Open output folder",
+                       lambda: self._open_folder(
+                           self._queue_out_dir(self.current_queue_id())))
+        menu.addSeparator()
+
+        retryable = [j for j in jobs if j["status"] in ("failed", "cancelled")]
+        redoable = [j for j in jobs if j["status"] == "done"]
+        if retryable:
+            menu.addAction(
+                f"Retry {len(retryable)} failed/cancelled",
+                lambda: self._requeue_jobs([j["id"] for j in retryable]))
+        if redoable:
+            menu.addAction(
+                f"Reprocess {len(redoable)} completed",
+                lambda: self._requeue_jobs([j["id"] for j in redoable]))
+        menu.addSeparator()
+
+        ids = [j["id"] for j in jobs]
+        move = menu.addMenu("Move")
+        move.addAction("Up", lambda: self._move_selected(ids, "up"))
+        move.addAction("Down", lambda: self._move_selected(ids, "down"))
+        move.addAction("To top", lambda: self._move_selected(ids, "top"))
+        move.addAction("To bottom", lambda: self._move_selected(ids, "bottom"))
+        menu.addSeparator()
+        menu.addAction(f"Remove {len(jobs)} from queue\tDel",
+                       self._delete_selected)
+        menu.exec(self.table.viewport().mapToGlobal(pos))
+
+    def _requeue_jobs(self, ids: list[int]):
+        n = self.store.requeue_jobs(ids)
+        self.log_line(f"Requeued {n} video(s).")
+        self.refresh_queue()
+
+    def _move_selected(self, ids: list[int], direction: str):
+        self.store.move_jobs(ids, direction)
+        selected = set(ids)
+        self.refresh_queue()
+        # keep the moved rows selected so repeated moves feel natural
+        self.table.clearSelection()
+        for r, job in enumerate(self._row_jobs):
+            if job["id"] in selected:
+                for c in range(self.table.columnCount()):
+                    item = self.table.item(r, c)
+                    if item:
+                        item.setSelected(True)
+
+    def _delete_selected(self):
+        jobs = self._selected_jobs()
+        if not jobs:
+            return
+        running = [j for j in jobs if j["status"] == "running"]
+        removable = [j["id"] for j in jobs if j["status"] != "running"]
+        if running:
+            self.log_line("The currently processing video was skipped — "
+                          "use Cancel Current first.")
+        if removable:
+            n = self.store.remove_jobs(removable)
+            self.log_line(f"Removed {n} video(s) from the queue "
+                          "(transcripts and cache stay on disk).")
+        self.refresh_queue()
+
+    def _open_transcript(self, job: dict):
+        vdir = Path(self.cfg.cache_dir) / job["video_id"]
+        meta_file = vdir / "meta.json"
+        if not meta_file.exists():
+            self.statusBar().showMessage("No transcript found.", 4000)
+            return
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+        out_dir = self._queue_out_dir(job["queue_id"])
+        base = out_dir / export.safe_filename(meta)
+        md = base.parent / f"{base.name}.md"
+        if md.exists():
+            os.startfile(str(md))  # noqa: S606
+        else:
+            self.statusBar().showMessage(
+                "Transcript file not found in this queue's folder.", 4000)
+
+    # ------------------------------------------------------- speaker editor --
 
     def _show_speaker_menu(self, job: dict):
         vdir = Path(self.cfg.cache_dir) / job["video_id"]
@@ -344,9 +609,14 @@ class MainWindow(QMainWindow):
         new_name = new_name.strip()
         if not new_name:
             return
+        # rewrite the transcripts in every queue folder this video was
+        # exported to (a video can sit in several tabs since v0.2.1)
+        out_dirs = [self._queue_out_dir(qid)
+                    for qid in self.store.queues_containing(vdir.name)] or None
         try:
             voices.apply_rename(self.cfg, vdir, label, new_name,
-                                self.voice_db, self.log_line)
+                                self.voice_db, self.log_line,
+                                out_dirs=out_dirs)
         except Exception as exc:
             self.log_line(f"ERROR renaming {label}: {exc}")
             QMessageBox.warning(self, "Rename failed", str(exc))
@@ -402,7 +672,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------- display --
 
     def refresh_queue(self):
-        jobs = self.store.all_jobs()
+        jobs = self.store.all_jobs(self.current_queue_id())
         self._row_jobs = jobs
         self.table.setRowCount(len(jobs))
         for r, j in enumerate(jobs):

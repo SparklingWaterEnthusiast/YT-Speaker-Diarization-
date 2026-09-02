@@ -205,11 +205,14 @@ def auto_match(video_dir: Path, diar: dict, vdb: VoiceDB, threshold: float,
 
 
 def apply_rename(cfg, video_dir: Path, label: str, new_name: str,
-                 vdb: VoiceDB | None, log=print) -> list[Path]:
+                 vdb: VoiceDB | None, log=print,
+                 out_dirs: list[Path] | None = None) -> list[Path]:
     """Rename one speaker of a completed video (see DESIGN.md §5.3).
 
     Updates speakers.json, stores the confirmed embedding in the voice DB,
-    and re-exports every transcript format configured or already on disk.
+    and re-exports every transcript format configured or already on disk —
+    into every output folder the video was exported to (`out_dirs`; queues
+    have their own subfolders since v0.2.1; defaults to the output root).
     Returns the rewritten files.
     """
     from . import export  # local import: export is a leaf module
@@ -241,9 +244,11 @@ def apply_rename(cfg, video_dir: Path, label: str, new_name: str,
     merged = json.loads(merged_file.read_text(encoding="utf-8"))
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
     names = display_names(cfg, video_dir, merged.get("speakers", []))
-    files = export.export_video(
-        merged, meta, cfg, Path(cfg.output_dir), names=names,
-        extra_formats=export.existing_formats(meta, Path(cfg.output_dir)))
+    files: list[Path] = []
+    for out_dir in out_dirs or [Path(cfg.output_dir)]:
+        files += export.export_video(
+            merged, meta, cfg, out_dir, names=names,
+            extra_formats=export.existing_formats(meta, out_dir))
     log(f"Re-exported {len(files)} file(s) with '{label}' -> '{new_name}'.")
     return files
 

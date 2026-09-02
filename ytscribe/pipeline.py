@@ -22,7 +22,7 @@ from typing import Callable
 
 from . import diarize, export, media, merge, transcribe, voices
 from .config import APP_DIR, Config
-from .db import JobStore
+from .db import DEFAULT_QUEUE_ID, JobStore
 
 
 def _noop(*args, **kwargs):
@@ -42,8 +42,9 @@ class Callbacks:
 
 
 def enqueue(url: str, cfg: Config, store: JobStore,
-            log: Callable[[str], None] = print) -> tuple[str, int]:
-    """Expand a URL and add its videos to the queue.
+            log: Callable[[str], None] = print,
+            queue_id: int = DEFAULT_QUEUE_ID) -> tuple[str, int]:
+    """Expand a URL and add its videos to one queue (UI tab).
 
     Returns (batch_name, number_of_new_jobs).
     """
@@ -59,9 +60,10 @@ def enqueue(url: str, cfg: Config, store: JobStore,
     added = 0
     for e in entries:
         if store.add(e["video_id"], e["url"], e["title"], e["duration"],
-                     e.get("channel", ""), batch=batch):
+                     e.get("channel", ""), batch=batch, queue_id=queue_id):
             added += 1
-    log(f"Queued {added} new video(s) ({len(entries) - added} already known).")
+    log(f"Queued {added} new video(s) ({len(entries) - added} already in "
+        "this queue).")
     return batch, added
 
 
@@ -104,18 +106,20 @@ class QueueRunner:
         if recovered:
             self.cb.on_log(f"Recovered {recovered} interrupted job(s) from a previous run.")
 
-        session_done: list[str] = []
+        completed = 0
         failed = 0
         queue_started = time.time()
         first_download_done = False
 
         while not self.stop_event.is_set():
             self._wait_if_paused()
-            pending = [j for j in self.store.pending() if j["status"] == "queued"]
-            if not pending:
+            # active queues form a priority stack: most recently started first
+            upcoming = self.store.next_queued_jobs(2)
+            if not upcoming:
                 break
-            job = pending[0]
-            nxt = pending[1] if len(pending) > 1 else None
+            job = upcoming[0]
+            nxt = upcoming[1] if len(upcoming) > 1 else None
+            qid = job["queue_id"]
             self.cancel_current.clear()
 
             # polite spacing between YouTube downloads
@@ -127,28 +131,31 @@ class QueueRunner:
             try:
                 self._process(job, nxt)
             except media.CancelledError:
-                self.store.mark_cancelled(job["video_id"])
+                self.store.mark_cancelled(job["video_id"], queue_id=qid)
                 self.cb.on_job_done(job["video_id"], "cancelled", "")
                 self.cb.on_log(f"Cancelled: {job['title'] or job['video_id']}")
+                self._maybe_finalize_queue(qid)
                 continue
             except Exception as exc:  # any stage failure -> retry queue, keep going
                 error = f"{type(exc).__name__}: {exc}"
-                self.store.mark_failed(job["video_id"], error)
+                self.store.mark_failed(job["video_id"], error, queue_id=qid)
                 failed += 1
                 self.cb.on_job_done(job["video_id"], "failed", error)
                 self.cb.on_log(f"FAILED {job['video_id']}: {error}")
+                self._maybe_finalize_queue(qid)
                 continue
             finally:
                 first_download_done = True
 
             wall = time.time() - started
-            self.store.mark_done(job["video_id"], wall)
-            session_done.append(job["video_id"])
+            self.store.mark_done(job["video_id"], wall, queue_id=qid)
+            completed += 1
             self._update_rtf(job["duration"], wall)
             self.cb.on_job_done(job["video_id"], "done", "")
             self._emit_queue_progress()
+            self._maybe_finalize_queue(qid)
 
-        summary = self._finish_queue(session_done, failed, time.time() - queue_started)
+        summary = self._finish_run(completed, failed, time.time() - queue_started)
         self.cb.on_queue_done(summary)
         return summary
 
@@ -162,13 +169,15 @@ class QueueRunner:
         started = time.time()
         self.cb.on_job_start(video_id, job["title"] or job["url"])
         self._process(job, None)
-        self.store.mark_done(video_id, time.time() - started)
+        self.store.mark_done(video_id, time.time() - started,
+                             queue_id=job["queue_id"])
         self.cb.on_job_done(video_id, "done", "")
 
     # -- per-job processing ---------------------------------------------------
 
     def _process(self, job: dict, next_job: dict | None) -> None:
         vid = job["video_id"]
+        qid = job.get("queue_id", DEFAULT_QUEUE_ID)
         vdir = self.cfg.cache_path / vid
         ffmpeg = self.cfg.resolve_ffmpeg()
 
@@ -178,7 +187,7 @@ class QueueRunner:
                 leftover.unlink(missing_ok=True)
 
         # Stage 1: acquire ---------------------------------------------------
-        self._enter_stage(vid, "acquire")
+        self._enter_stage(vid, "acquire", qid)
         audio = self._take_prefetched(vid)
         if audio is None:
             audio = media.download_audio(
@@ -197,7 +206,7 @@ class QueueRunner:
             self._start_prefetch(next_job)
 
         # Stage 2: transcribe --------------------------------------------------
-        self._enter_stage(vid, "transcribe")
+        self._enter_stage(vid, "transcribe", qid)
         if self._transcriber is None:
             self._transcriber = transcribe.Transcriber(self.cfg, self.cb.on_log)
         asr = transcribe.run_stage(
@@ -207,7 +216,7 @@ class QueueRunner:
         self._checkpoint()
 
         # Stage 3: diarize ----------------------------------------------------
-        self._enter_stage(vid, "diarize")
+        self._enter_stage(vid, "diarize", qid)
         self._invalidate_stale_diarization(vdir)
         if self._diarizer is None:
             self._diarizer = diarize.Diarizer(self.cfg, self.cb.on_log)
@@ -226,14 +235,14 @@ class QueueRunner:
         self._checkpoint()
 
         # Stage 4: merge -----------------------------------------------------
-        self._enter_stage(vid, "merge")
+        self._enter_stage(vid, "merge", qid)
         merged = merge.run_stage(asr, dia, vdir / "merged.json", self.cfg)
 
         # Stage 5: export ------------------------------------------------------
-        self._enter_stage(vid, "export")
+        self._enter_stage(vid, "export", qid)
         names = voices.display_names(self.cfg, vdir, merged.get("speakers", []))
-        files = export.export_video(merged, meta, self.cfg, self.cfg.output_path,
-                                    names=names)
+        files = export.export_video(merged, meta, self.cfg,
+                                    self.queue_out_dir(qid), names=names)
         self.cb.on_log(f"Exported {len(files)} file(s) for '{meta.get('title', vid)}'")
 
         if self.cfg.cache_policy == "delete_after_video":
@@ -256,11 +265,18 @@ class QueueRunner:
             diar_file.unlink(missing_ok=True)
             (vdir / "merged.json").unlink(missing_ok=True)
 
-    def _enter_stage(self, vid: str, stage: str) -> None:
+    def queue_out_dir(self, queue_id: int) -> Path:
+        """Output folder for a queue: output_dir/<queue folder> (root when
+        the folder is empty — the default 'Main' queue)."""
+        queue = self.store.get_queue(queue_id)
+        folder = (queue or {}).get("folder") or ""
+        return self.cfg.output_path / folder if folder else self.cfg.output_path
+
+    def _enter_stage(self, vid: str, stage: str, queue_id: int | None = None) -> None:
         self._wait_if_paused()
         if self.cancel_current.is_set():
             raise media.CancelledError("cancelled")
-        self.store.set_stage(vid, stage)
+        self.store.set_stage(vid, stage, queue_id=queue_id)
         self.cb.on_stage(vid, stage)
 
     def _checkpoint(self) -> None:
@@ -340,14 +356,21 @@ class QueueRunner:
         eta = remaining_audio / self._rtf_ema if self._rtf_ema else 0
         self.cb.on_queue_progress(done, len(jobs), eta, self._rtf_ema or 0)
 
-    def _finish_queue(self, session_done: list[str], failed: int,
-                      wall: float) -> dict:
-        # combined transcript over everything completed this session, queue order
-        combined_files: list[str] = []
-        if self.cfg.combined_transcript and len(session_done) > 1:
+    def _maybe_finalize_queue(self, queue_id: int) -> None:
+        """When a queue runs out of queued jobs: write its combined
+        transcript, apply the cache policy, and deactivate it (the next
+        queue on the priority stack takes over automatically)."""
+        remaining = [j for j in self.store.pending(queue_id)
+                     if j["status"] == "queued"]
+        if remaining:
+            return
+        queue = self.store.get_queue(queue_id) or {}
+        done = [j for j in self.store.all_jobs(queue_id) if j["status"] == "done"]
+
+        if self.cfg.combined_transcript and len(done) > 1:
             items = []
-            for vid in session_done:
-                vdir = self.cfg.cache_path / vid
+            for j in done:
+                vdir = self.cfg.cache_path / j["video_id"]
                 mfile, meta_file = vdir / "merged.json", vdir / "meta.json"
                 if mfile.exists() and meta_file.exists():
                     merged = json.loads(mfile.read_text(encoding="utf-8"))
@@ -357,22 +380,23 @@ class QueueRunner:
                                   json.loads(meta_file.read_text(encoding="utf-8")),
                                   names))
             if items:
-                job = self.store.get(session_done[0])
-                batch = (job.get("batch") or "").rsplit(" ", 2)[0] if job else ""
-                name = batch or f"queue {time.strftime('%Y-%m-%d')}"
-                combined_files = [str(p) for p in export.export_combined(
-                    items, self.cfg, self.cfg.output_path, name)]
-                self.cb.on_log(f"Combined transcript written ({len(items)} videos).")
+                export.export_combined(items, self.cfg,
+                                       self.queue_out_dir(queue_id),
+                                       queue.get("name") or "queue")
+                self.cb.on_log(f"Combined transcript for queue "
+                               f"'{queue.get('name', '?')}' written "
+                               f"({len(items)} videos).")
 
         if self.cfg.cache_policy == "delete_after_queue":
-            # every finished job, not just this session's: a queue completed
-            # across several sessions must still clean up earlier audio
-            for j in self.store.all_jobs():
-                if j["status"] == "done":
-                    self._delete_audio(self.cfg.cache_path / j["video_id"])
+            for j in done:
+                self._delete_audio(self.cfg.cache_path / j["video_id"])
 
-        return {"completed": len(session_done), "failed": failed,
-                "wall_seconds": wall, "combined": combined_files,
+        self.store.set_queue_active(queue_id, False)
+        self.cb.on_log(f"Queue '{queue.get('name', '?')}' finished.")
+
+    def _finish_run(self, completed: int, failed: int, wall: float) -> dict:
+        return {"completed": completed, "failed": failed,
+                "wall_seconds": wall, "combined": [],
                 "avg_rtf": self._rtf_ema or 0}
 
     def unload_models(self) -> None:

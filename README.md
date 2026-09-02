@@ -15,6 +15,11 @@ instead of watching.
 - Merges ASR and diarization at the **word level** for accurate attribution
 - Exports **Markdown** by default; JSON, TXT, SRT, VTT are optional, plus a
   combined transcript per queue
+- **Queue tabs** (v0.2.1): File-Explorer-style tabs, each an independent
+  queue with its own output subfolder — start a priority tab mid-run and the
+  bulk queue steps aside, then resumes automatically
+- File-manager queue control: multi-select, right-click retry/reprocess/
+  reorder/remove, drag tabs, rename tabs (renames the folder)
 - Caches every stage — interrupted runs resume without repeating work
 - Designed for large jobs: a 1,000+-video channel can run unattended; failures
   go to a retry queue and never stop the run

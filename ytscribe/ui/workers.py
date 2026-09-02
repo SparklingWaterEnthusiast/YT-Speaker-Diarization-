@@ -21,14 +21,16 @@ class EnqueueWorker(QThread):
     done = Signal(str, int)      # batch name, number added
     failed = Signal(str)
 
-    def __init__(self, url: str, cfg: Config, store: JobStore, parent=None):
+    def __init__(self, url: str, cfg: Config, store: JobStore,
+                 queue_id: int, parent=None):
         super().__init__(parent)
         self.url, self.cfg, self.store = url, cfg, store
+        self.queue_id = queue_id
 
     def run(self):
         try:
             batch, added = pipeline.enqueue(self.url, self.cfg, self.store,
-                                            self.log.emit)
+                                            self.log.emit, self.queue_id)
             self.done.emit(batch, added)
         except Exception as exc:
             self.failed.emit(str(exc))

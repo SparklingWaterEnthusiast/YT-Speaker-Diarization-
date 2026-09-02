@@ -221,3 +221,50 @@ and instant transcript rewrite, Cliffe & Stuart profiles seeded from the
 professional reference at 98 % alignment purity, housekeeping audited with
 two real fixes (crash-orphaned .tmp files; delete_after_queue across
 sessions). 44/44 tests passing.
+
+---
+
+# Version 0.2.1 — queue tabs & file-manager UX (September 2, 2026)
+
+## 13. Implemented
+
+Quality-of-life release modeled on File Explorer conventions; the
+processing pipeline is untouched.
+
+- **Queue tabs**: `queues` table added (schema v2, automatic in-place
+  migration that rebuilds the jobs table — the constraint changed from
+  UNIQUE(video_id) to UNIQUE(video_id, queue_id) so one video can sit in
+  several tabs; its second run is nearly free via the artifact cache).
+  Each tab owns an output subfolder (default name = creation date/time;
+  the pre-existing "Main" queue keeps writing to the output root).
+  Double-click renames tab + folder together; tabs are draggable
+  (order persisted); right-click: rename / open folder / stop / delete.
+- **Priority-stack scheduling**: active queues are processed most recently
+  started first. Starting a small tab mid-bulk-run preempts at the next
+  video boundary; the bulk queue resumes automatically when the tab
+  drains. Queues deactivate themselves and write their own combined
+  transcript (into their subfolder) when they finish.
+- **Queue table as file manager**: extended multi-select (Ctrl/Shift,
+  Ctrl+A), right-click context menu — edit speakers, open transcript,
+  open output folder, retry failed *and cancelled* (the gap noted by the
+  user), reprocess completed, move up/down/top/bottom, remove selection
+  (Del key too; removal never touches transcripts or cache). Speaker
+  editor moved from single-click to double-click / context menu so plain
+  clicks select rows.
+- Renames now re-export into **every** queue folder containing the video.
+
+## 14. v0.2.1 testing
+
+- 57/57 unit tests (13 new): queue CRUD + cascade, same-video-in-two-
+  queues, per-queue status isolation, tab-order persistence, priority
+  ordering (newest queue first, fallback after drain), inactive queues
+  skipped, manual reorder respected by the scheduler, multi-select move
+  semantics, remove-skips-running, requeue of cancelled, and a real
+  v1-database migration test.
+- GUI offscreen test: real production DB (868 jobs) migrated in place;
+  tab create/switch/add/select-all/delete/tab-delete all exercised.
+- Live end-to-end: a "Priority Test" tab processed a video into its own
+  subfolder while the 866-video Main queue (inactive) was untouched;
+  cached stages reused (no model load for transcription); the queue
+  deactivated itself on completion; a previously renamed speaker's name
+  carried into the new folder automatically.

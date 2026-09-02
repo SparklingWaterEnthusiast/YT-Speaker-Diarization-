@@ -67,6 +67,12 @@ def run_cli(args) -> int:
             print(f"ERROR enqueuing {url}: {exc}")
             return 1
 
+    # headless mode processes the whole backlog: activate every queue that
+    # still has queued jobs (the GUI activates tabs individually instead)
+    for q in store.queues():
+        if any(j["status"] == "queued" for j in store.pending(q["id"])):
+            store.set_queue_active(q["id"], True)
+
     cb = pipeline.Callbacks(
         on_log=print,
         on_job_start=lambda vid, title: print(f"\n=== {title} ({vid}) ==="),
@@ -142,10 +148,12 @@ def run_seed(args) -> int:
         print("No confident alignment between detected speakers and the "
               "reference — no profiles created.")
         return 1
+    out_dirs = [runner.queue_out_dir(q) for q in store.queues_containing(vid)]
     for label, info in alignment.items():
         print(f"{label} -> {info['name']} "
               f"(overlap {info['overlap']}s, purity {info['purity']:.0%})")
-        voices.apply_rename(cfg, vdir, label, info["name"], vdb, print)
+        voices.apply_rename(cfg, vdir, label, info["name"], vdb, print,
+                            out_dirs=out_dirs or None)
     print("\nStored profiles:")
     for p in vdb.profiles():
         print(f"  {p['name']}: {p['confirmed_samples']} confirmed sample(s)")
