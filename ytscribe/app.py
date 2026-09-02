@@ -51,6 +51,8 @@ def run_cli(args) -> int:
             print("config error:", p)
         return 2
     save_config(cfg)  # materialize defaults on first run
+    for warning in pipeline.media.environment_report():
+        print(f"WARNING: {warning}")
     store = JobStore(APP_DIR / "jobs.sqlite3")
 
     if args.list:

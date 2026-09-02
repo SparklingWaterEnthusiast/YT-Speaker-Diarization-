@@ -47,6 +47,21 @@ python -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
+## Routine maintenance
+
+YouTube changes how it serves media every few months, which breaks older
+yt-dlp releases (typically a blanket `HTTP Error 403` on downloads while
+metadata still resolves). Keep it current:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File update-deps.ps1
+```
+
+This updates yt-dlp and installs Deno (the JavaScript runtime yt-dlp now
+requires for YouTube) if missing. Restart YTScribe afterwards — a running
+instance keeps the old version loaded in memory. YTScribe warns in its log
+at startup when yt-dlp is over 60 days old or no JS runtime is present.
+
 ## First run
 
 The first processed video additionally downloads (once, to the HuggingFace
@@ -70,6 +85,8 @@ community mirror of the diarization pipeline).
 
 | Symptom | Fix |
 |---|---|
+| **`HTTP Error 403: Forbidden` / "unable to download video data"** | **yt-dlp is out of date** — YouTube changed its streaming protocol. Run `update-deps.ps1`, restart YTScribe, then Retry Failed. This recurs every few months; it is normal maintenance, not a bug in YTScribe |
+| `No supported JavaScript runtime could be found` | Install Deno: `winget install DenoLand.Deno`, then restart YTScribe. yt-dlp has deprecated YouTube extraction without a JS runtime |
 | `ffmpeg not found` | Open a new terminal (PATH refresh) or set `ffmpeg_path` in Settings/config.json |
 | `CUDA init failed; falling back to CPU` in the log | Update the NVIDIA driver; the app still works on CPU meanwhile |
 | `Sign in to confirm you're not a bot` on downloads | Set **Cookies from browser** in Settings (e.g. `chrome`), lower download rates, or see CONFIGURATION.md → PO tokens |

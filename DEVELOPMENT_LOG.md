@@ -268,3 +268,41 @@ processing pipeline is untouched.
   cached stages reused (no model load for transcription); the queue
   deactivated itself on completion; a previously renamed speaker's name
   carried into the new folder automatically.
+
+---
+
+# Version 0.2.2 — YouTube 403 fix & download diagnostics (September 2, 2026)
+
+## 15. Incident
+
+User reported repeated `HTTP Error 403: Forbidden` ("unable to download
+video data") during the channel run; metadata resolved fine, only media
+downloads failed.
+
+**Diagnosis (reproduced locally on the reported video IDs):** the installed
+yt-dlp was 2026.07.04 while 2026.08.19 was current. The verbose log showed
+yt-dlp falling back to the `android_vr` client and requesting format 140 —
+the exact combination YouTube began rejecting (yt-dlp issues #14680,
+#17456). Nothing about YTScribe's own code was at fault: rate limiting,
+cookies and PO tokens were red herrings.
+
+**Fix:** `pip install -U yt-dlp` (→ 2026.08.19). Both failing videos then
+downloaded successfully (24.6 MiB and 26.1 MiB). A second warning surfaced
+after the update — "No supported JavaScript runtime could be found;
+YouTube extraction without a JS runtime has been deprecated" — so Deno
+2.9.6 was installed via winget; the warning cleared and yt-dlp now uses
+the `visionos` client cleanly.
+
+## 16. Hardening (so this self-diagnoses next time)
+
+- `media._explain()` rewrites known failure modes into actionable errors:
+  403 → "run update-deps.ps1"; bot-check → "set Cookies from browser";
+  unavailable video → stated plainly. The error text is what lands in the
+  UI log and the job's Error column.
+- `media.environment_report()` runs at startup (GUI log + CLI stdout):
+  warns when yt-dlp is >60 days old (CalVer parsed from the version) or no
+  JS runtime (deno/node/bun/qjs) is on PATH.
+- `update-deps.ps1` added: updates yt-dlp, installs Deno if absent.
+- INSTALL.md gained a "Routine maintenance" section and two troubleshooting
+  rows; this class of breakage is expected maintenance, not a defect.
+- 5 new unit tests (62 total, all passing).

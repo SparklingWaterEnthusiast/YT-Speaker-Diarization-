@@ -149,13 +149,73 @@ def download_audio(url: str, video_dir: Path, cfg,
     except CancelledError:
         raise
     except Exception as exc:  # yt-dlp raises many exception types
-        raise DownloadError(str(exc)) from exc
+        raise DownloadError(_explain(str(exc))) from exc
 
     _write_meta(video_dir, info)
     audio = _find_audio(video_dir)
     if not audio:
         raise DownloadError("yt-dlp reported success but no audio file was produced")
     return audio
+
+
+def _explain(message: str) -> str:
+    """Append actionable guidance to known YouTube failure modes.
+
+    YouTube changes its streaming protocol every few months, which breaks
+    older yt-dlp releases — usually as a blanket 403 on the media URL even
+    though metadata still resolves. The fix is nearly always an update, so
+    say so in the error itself rather than leaving a bare HTTP code.
+    """
+    lowered = message.lower()
+    if "403" in message and "forbidden" in lowered:
+        return (f"{message}  →  YouTube refused the media download. This is "
+                "almost always an out-of-date yt-dlp: run update-deps.ps1 "
+                "(or 'pip install -U yt-dlp' in the venv), then Retry Failed.")
+    if "sign in to confirm" in lowered or "not a bot" in lowered:
+        return (f"{message}  →  YouTube is bot-checking this connection. Set "
+                "'Cookies from browser' in Settings and/or raise the sleep "
+                "between downloads.")
+    if "video unavailable" in lowered or "private video" in lowered:
+        return f"{message}  →  This video is unavailable (private/removed)."
+    return message
+
+
+def environment_report() -> list[str]:
+    """Warnings about the download environment, shown at startup.
+
+    Keeps the two recurring YouTube breakages visible before a long
+    unattended run instead of surfacing as a wall of 403s hours later.
+    """
+    warnings: list[str] = []
+    version = getattr(yt_dlp.version, "__version__", "unknown")
+    age_days = _release_age_days(version)
+    if age_days is not None and age_days > 60:
+        warnings.append(
+            f"yt-dlp {version} is ~{age_days} days old. YouTube changes "
+            "frequently; if downloads start failing with HTTP 403, run "
+            "update-deps.ps1.")
+    if not _js_runtime_available():
+        warnings.append(
+            "No JavaScript runtime found (Deno). yt-dlp has deprecated "
+            "YouTube extraction without one and some formats may be "
+            "missing — install with: winget install DenoLand.Deno")
+    return warnings
+
+
+def _release_age_days(version: str) -> int | None:
+    """yt-dlp versions are CalVer (YYYY.MM.DD)."""
+    import datetime
+    try:
+        parts = [int(p) for p in version.split(".")[:3]]
+        released = datetime.date(*parts)
+    except (ValueError, TypeError):
+        return None
+    return (datetime.date.today() - released).days
+
+
+def _js_runtime_available() -> bool:
+    import shutil as _shutil
+    return any(_shutil.which(exe) for exe in ("deno", "node", "bun", "qjs"))
 
 
 def _find_audio(video_dir: Path) -> Path | None:

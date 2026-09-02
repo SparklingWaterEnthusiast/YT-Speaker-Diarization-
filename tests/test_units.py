@@ -302,3 +302,29 @@ class TestConfig(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDownloadDiagnostics(unittest.TestCase):
+    """v0.2.2: actionable messages for the recurring YouTube failures."""
+
+    def test_403_suggests_update(self):
+        msg = media._explain("ERROR: unable to download video data: "
+                             "HTTP Error 403: Forbidden")
+        self.assertIn("update-deps.ps1", msg)
+        self.assertIn("out-of-date yt-dlp", msg)
+
+    def test_bot_check_suggests_cookies(self):
+        msg = media._explain("Sign in to confirm you're not a bot")
+        self.assertIn("Cookies from browser", msg)
+
+    def test_unrelated_error_unchanged(self):
+        self.assertEqual(media._explain("some other failure"),
+                         "some other failure")
+
+    def test_release_age_parsing(self):
+        self.assertIsNone(media._release_age_days("unknown"))
+        self.assertGreater(media._release_age_days("2020.01.01"), 2000)
+
+    def test_environment_report_returns_strings(self):
+        for w in media.environment_report():
+            self.assertIsInstance(w, str)

@@ -58,6 +58,9 @@ class MainWindow(QMainWindow):
         self.refresh_queue()
         if recovered:
             self.log_line(f"Recovered {recovered} interrupted job(s); press Start to resume.")
+        from .. import media
+        for warning in media.environment_report():
+            self.log_line(f"WARNING: {warning}")
 
         self.res_timer = QTimer(self)
         self.res_timer.timeout.connect(self._update_resources)
