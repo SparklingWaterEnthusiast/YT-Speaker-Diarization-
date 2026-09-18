@@ -31,7 +31,7 @@ automatically.
 
 ```powershell
 git clone <this-repository>
-cd "Speedch Diariztion v0.1"
+cd "Speaker Diariztion"
 powershell -ExecutionPolicy Bypass -File setup.ps1   # one time, installs everything
 .\run.ps1                                            # launches the app
 ```
