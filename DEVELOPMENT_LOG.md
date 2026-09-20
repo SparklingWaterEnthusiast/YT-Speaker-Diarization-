@@ -393,12 +393,6 @@ and a full 866-video/multi-day queue were not tested during this engagement.
 
 ## 19. Final handoff and agreed verification scope
 
-The user clarified that the 866 videos are the production workload, not a test
-suite, and no GPU other than the RTX 3080 Laptop is available or required.
-The implementation and bounded local verification are complete. No further
-benchmark runs are scheduled as release gates. Final review corrected ownership
-lease wording and distinguished early batch-memory results from the final
-memory-safe measurements; these were documentation-only edits.
 
 Launch the updated checkout using `run.ps1`. Existing saved settings are
 preserved; Performance is explicitly opt-in through Settings → Optimization →
