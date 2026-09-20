@@ -2,4 +2,6 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+benchmark/work/
+benchmark/results/*/
 # user data lives in Documents/YTScribe, not the repo

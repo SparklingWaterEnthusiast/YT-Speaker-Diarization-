@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import time
+from collections import deque
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
@@ -23,6 +24,7 @@ from .. import export, resources, voices
 from ..config import APP_DIR, load_config, save_config
 from ..db import JobStore
 from ..export import fmt_ts
+from ..worker_lock import processing_lease
 from .settings_dialog import SettingsDialog
 from .workers import EnqueueWorker, RunWorker
 
@@ -46,18 +48,32 @@ class MainWindow(QMainWindow):
         self.cfg = load_config()
         save_config(self.cfg)  # materialize defaults on first launch
         self.store = JobStore(APP_DIR / "jobs.sqlite3")
-        recovered = self.store.recover_interrupted()
+        recovered = 0
+        recovery_warning = None
+        try:
+            with processing_lease(self.cfg.cache_path, self.store.db_path.parent):
+                recovered = self.store.recover_interrupted()
+        except RuntimeError as exc:
+            recovery_warning = f"Startup recovery skipped: {exc}"
 
         self.run_worker: RunWorker | None = None
         self.enqueue_worker: EnqueueWorker | None = None
         self.run_started_at: float | None = None
         self.voice_db = voices.VoiceDB(APP_DIR / "voices.sqlite3")
         self._row_jobs: list[dict] = []
+        self._closing = False
+        self._thermal_observations: deque[bool] = deque(maxlen=10)
+        self._last_thermal_warning_at: float | None = None
+        self._close_timer = QTimer(self)
+        self._close_timer.setInterval(100)
+        self._close_timer.timeout.connect(self._poll_close)
 
         self._build_ui()
         self.refresh_queue()
         if recovered:
             self.log_line(f"Recovered {recovered} interrupted job(s); press Start to resume.")
+        if recovery_warning:
+            self.log_line(recovery_warning)
         from .. import media
         for warning in media.environment_report():
             self.log_line(f"WARNING: {warning}")
@@ -185,10 +201,14 @@ class MainWindow(QMainWindow):
         self.clear_btn.clicked.connect(self.clear_finished)
         self.open_btn = QPushButton("Open Output Folder")
         self.open_btn.clicked.connect(self.open_output)
+        self.cache_btn = QPushButton("Open Audio / Cache")
+        self.cache_btn.setToolTip("Open per-video audio, saved stage JSON and speaker samples. "
+                                 "Choose audio retention in Settings.")
+        self.cache_btn.clicked.connect(lambda: self._open_folder(self.cfg.cache_path))
         self.settings_btn = QPushButton("Settings…")
         self.settings_btn.clicked.connect(self.open_settings)
         for b in (self.start_btn, self.pause_btn, self.cancel_btn, self.retry_btn,
-                  self.clear_btn, self.open_btn, self.settings_btn):
+                  self.clear_btn, self.open_btn, self.cache_btn, self.settings_btn):
             controls.addWidget(b)
         controls.addStretch(1)
         root.addLayout(controls)
@@ -197,11 +217,13 @@ class MainWindow(QMainWindow):
         res = QHBoxLayout()
         self.res_labels = {}
         for key, text in (("gpu", "GPU: —"), ("vram", "VRAM: —"), ("cpu", "CPU: —"),
-                          ("ram", "RAM: —"), ("disk", "Disk free: —")):
+                          ("ram", "RAM: —"), ("disk", "Disk free: —"),
+                          ("temperature", "Temp: —"), ("clock", "Clock: —"),
+                          ("power", "Power: —")):
             lbl = QLabel(text)
             self.res_labels[key] = lbl
             res.addWidget(lbl)
-            res.addSpacing(18)
+            res.addSpacing(8)
         res.addStretch(1)
         root.addLayout(res)
 
@@ -211,6 +233,8 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------- actions --
 
     def add_url(self):
+        if self._closing:
+            return
         url = self.url_edit.text().strip()
         if not url:
             return
@@ -236,9 +260,17 @@ class MainWindow(QMainWindow):
         self.add_btn.setEnabled(True)
         self.statusBar().showMessage("Could not add URL.", 5000)
         self.log_line(f"ERROR: {error}")
-        QMessageBox.warning(self, "Could not add URL", error)
+        if not self._closing:
+            QMessageBox.warning(self, "Could not add URL", error)
 
     def start_queue(self):
+        if self._closing:
+            return
+        candidate = load_config()  # validate before activating a queue or creating a worker
+        problems = candidate.validate()
+        if problems:
+            QMessageBox.warning(self, "Invalid settings", "\n".join(problems))
+            return
         qid = self.current_queue_id()
         queue = self.store.get_queue(qid) or {"name": "?"}
         if not [j for j in self.store.pending(qid) if j["status"] == "queued"]:
@@ -253,8 +285,9 @@ class MainWindow(QMainWindow):
             self.log_line(f"Queue '{queue['name']}' started — it takes "
                           "priority after the current video finishes.")
             return
-        self.cfg = load_config()  # pick up any settings changes
+        self.cfg = candidate
         self.run_worker = RunWorker(self.cfg, self.store, self)
+        self._thermal_observations.clear()
         w = self.run_worker
         w.log.connect(self.log_line)
         w.job_start.connect(self._job_start)
@@ -465,6 +498,9 @@ class MainWindow(QMainWindow):
         menu.addAction("Open output folder",
                        lambda: self._open_folder(
                            self._queue_out_dir(self.current_queue_id())))
+        if single:
+            menu.addAction("Open this video's audio / stage cache",
+                           lambda: self._open_folder(self.cfg.cache_path / single["video_id"]))
         menu.addSeparator()
 
         retryable = [j for j in jobs if j["status"] in ("failed", "cancelled")]
@@ -710,23 +746,82 @@ class MainWindow(QMainWindow):
         r["gpu"].setText(f"GPU: {snap.gpu_percent:.0f}%" if snap.gpu_available
                          else "GPU: n/a")
         r["vram"].setText(
-            f"VRAM: {snap.vram_used_gb:.1f}/{snap.vram_total_gb:.0f} GB"
+            f"VRAM: {snap.vram_used_gb:.1f}/{snap.vram_total_gb:.0f} GiB"
             if snap.gpu_available else "VRAM: n/a")
         r["cpu"].setText(f"CPU: {snap.cpu_percent:.0f}%")
-        r["ram"].setText(f"RAM: {snap.ram_used_gb:.1f}/{snap.ram_total_gb:.0f} GB")
-        r["disk"].setText(f"Disk free: {snap.disk_free_gb:.0f} GB")
+        r["ram"].setText(f"RAM: {snap.ram_used_gb:.1f}/{snap.ram_total_gb:.0f} GiB")
+        r["disk"].setText(f"Disk free: {snap.disk_free_gb:.0f} GiB")
+        for key, attr, label, unit in (
+            ("temperature", "temperature_c", "Temp", "°C"),
+            ("clock", "sm_clock_mhz", "Clock", " MHz"),
+            ("power", "power_w", "Power", " W"),
+        ):
+            value = getattr(snap, attr, None)
+            r[key].setText(f"{label}: {value:.0f}{unit}" if value is not None else f"{label}: n/a")
+        self._check_thermal_warning(snap)
+
+    def _check_thermal_warning(self, snap):
+        if not self.run_worker or not self.run_worker.isRunning():
+            self._thermal_observations.clear()
+            return
+        reasons = getattr(snap, "throttle_reasons", None) or ()
+        thermal = any(reason in ("sw_thermal_slowdown", "hw_thermal_slowdown")
+                      for reason in reasons)
+        # Count observations, not individual flags. Missing metrics age out evidence.
+        self._thermal_observations.append(thermal)
+        count = sum(self._thermal_observations)
+        if count < 5:
+            return
+        now = time.monotonic()
+        if self._last_thermal_warning_at is not None and now - self._last_thermal_warning_at < 60:
+            return
+        self._last_thermal_warning_at = now
+        self.log_line(
+            f"WARNING: GPU thermal slowdown reported by the driver in {count} of "
+            f"the last {len(self._thermal_observations)} resource samples during processing. "
+            "Check cooling and ventilation; this warning does not change processing settings.")
 
     # ------------------------------------------------------------- closing --
 
     def closeEvent(self, event):
-        if self.run_worker and self.run_worker.isRunning():
+        if self._closing:
+            if self._workers_finished():
+                self._close_timer.stop()
+                self.res_timer.stop()
+                self.clock_timer.stop()
+                event.accept()
+            else:
+                event.ignore()
+            return
+        if not self._workers_finished():
             answer = QMessageBox.question(
-                self, "Quit", "Processing is running. Stop after the current "
-                "stage and quit?\nCompleted work is saved and will resume next time.")
+                self, "Quit", "Background work is running. Stop processing and quit "
+                "once the workers finish?\nCompleted stages are saved. URL resolution "
+                "or an active model call may need time to finish.")
             if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
-            self.run_worker.runner.stop()
-            self.run_worker.runner.cancel_current_job()
-            self.run_worker.wait(15000)
+            self._closing = True
+            if self.run_worker and self.run_worker.isRunning():
+                self.run_worker.runner.stop()
+                self.run_worker.runner.cancel_current_job()
+            if self.enqueue_worker and self.enqueue_worker.isRunning():
+                # Cooperative hint; older enqueue implementations finish naturally.
+                self.enqueue_worker.requestInterruption()
+            self.centralWidget().setEnabled(False)
+            self.statusBar().showMessage("Closing safely — waiting for background work and model cleanup…")
+            self._close_timer.start()
+            event.ignore()
+            return
+        self.res_timer.stop()
+        self.clock_timer.stop()
         event.accept()
+
+    def _workers_finished(self):
+        # wait(0) also checks thread-local cleanup after Qt's finished signal.
+        return all(worker is None or (not worker.isRunning() and worker.wait(0))
+                   for worker in (self.run_worker, self.enqueue_worker))
+
+    def _poll_close(self):
+        if self._workers_finished():
+            self.close()

@@ -1,0 +1,9 @@
+{
+  "evidence": "MEASURED consistency proxy, not timestamp accuracy or DER",
+  "matched_words": 4657,
+  "median_start_difference_s": 0.009999999999990905,
+  "p95_start_difference_s": 0.21000000000003638,
+  "invalid_word_intervals": 0,
+  "zero_duration_words": 11,
+  "limitations": "Matched-word timing can differ legitimately; reference lacks word-level timing. Zero-duration words are upstream alignment artifacts."
+}

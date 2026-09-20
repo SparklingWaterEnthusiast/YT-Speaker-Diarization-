@@ -65,5 +65,5 @@ class RunWorker(QThread):
             self.runner.run()
         except Exception as exc:  # never let a crash take down the app silently
             self.log.emit(f"FATAL queue error: {type(exc).__name__}: {exc}")
-            self.queue_done.emit({"completed": 0, "failed": 0,
+            self.queue_done.emit({"completed": 0, "failed": 1,
                                   "wall_seconds": 0, "combined": [], "avg_rtf": 0})

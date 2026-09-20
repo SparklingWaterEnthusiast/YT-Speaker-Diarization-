@@ -306,3 +306,103 @@ the `visionos` client cleanly.
 - INSTALL.md gained a "Routine maintenance" section and two troubleshooting
   rows; this class of breakage is expected maintenance, not a defect.
 - 5 new unit tests (62 total, all passing).
+
+---
+
+# Version 0.3.0 — Optimization Overhaul (September 19, 2026)
+
+## 17. Evidence-led changes
+
+Started from clean v0.2.2 commit `d66665c`; preserved its package in an isolated
+benchmark directory before editing. No production queues, profiles, outputs or
+audio were processed or deleted. Only the requested benchmark source was acquired.
+Research compared upstream CT2/faster-whisper modes and hardware capabilities;
+the existing acquisition/ASR/diarization/merge/export architecture remains intact.
+
+- P0: process-owned leases cover both cache and job database directories;
+  asynchronous Qt shutdown drains workers/prefetch and requeues the interrupted
+  stage; startup recovery cannot reset another worker's running jobs.
+- P0: reproduced a fresh-process diarization-first memory pathology. PyTorch
+  reserved 11.375 GB on the physical 8 GB GPU. Added a temporary physical-memory
+  allocator budget and release of unused torch scratch memory before CT2 work.
+  No driver policy changes. The exact workspace algorithm remains unverified.
+- P0: bounded OOM retries halve batches without preserving partial inference;
+  non-memory errors propagate. A failed model transfer cannot leave a silently
+  CPU-resident pipeline marked ready. Invalid processing settings fail early.
+- P1: optional batched ASR reuses weights but uses a new decoder per job/retry.
+  Sequential large-v3/beam 5/word timestamps remain defaults. Cached complete
+  artifacts can re-export without audio, FFmpeg or model construction.
+- P1: prefetch owns at most one thread across priority changes, reuses cached
+  WAVs and drains at shutdown. Cache-only exports do not inflate throughput/ETA.
+- P2/P3: explicit asynchronous capability probe; Safe/Balanced/Performance
+  presets; advanced controls, temperature/clock/power and sustained thermal
+  warnings; clearer retention labels and cache-folder actions.
+- P3: opt-in JSONL stage/resource traces; high-resolution monotonic host timing;
+  separate PyTorch and NVML counters, process/thread identity, cache/cold flags,
+  real-time ratios and explicit missing values. Sampling does not initialize CUDA.
+- Housekeeping: delete only recognized application-owned audio and unfinished
+  artifacts; retain stage JSON, short voice samples and user-named adjacent files.
+
+## 18. Actual verification
+
+The original 62-test suite passed before changes; the expanded suite has **143
+passing tests**. Includes settings migration/round trips,
+Qt shutdown/startup ownership, bounded retry behavior, non-OOM propagation,
+cache policies, cache-only export, immutable run configuration, telemetry and
+thermal sampling. `compileall` and `git diff --check` passed. Real Qt settings
+were rendered and inspected; opening the dialog did not import torch.
+
+Full-source initial ASR: 230.208 s cold-inference / 210.785 s warm; optional
+batch 4: 83.750 / 90.448 s. Final memory-safe batch 4: 67.580 / 63.928 s.
+Different laptop thermal/power observations prohibit attributing every later
+gain to code. Cold model initialization is separately measured. Thirteen
+180-second configuration experiments each ran three repetitions. A later
+frozen-source recheck and final evidence are recorded in the linked report.
+
+Reference evaluation: 315/4794 normalized word errors originally versus
+306/4794 with batch 4; this imperfect single-video reference is not a general
+accuracy guarantee. Raw/exclusive speaker turns were identical and stored voice
+profiles remained compatible. Real cached exports generated Markdown only by
+default, then all optional formats; manual renaming updated each format without
+audio or model loading. Profile persistence was tested in an isolated database.
+
+Real Qt restart PASS: process 8516 transcribed/paused/closed; process 18760
+reused its cached ASR and completed three 300/480/600-second excerpts in
+105.717 s. All jobs done, cached hash unchanged, workers finished. The initial
+memory-pathology diagnostic was intentionally terminated, not counted as a pass.
+Fixed first-item diarization: 103.344 → 20.922 s; identical speaker boundaries.
+Driver VRAM returned to ~740 MiB desktop/background occupancy after final exit.
+
+Final checks: cold-model full-source Qt pipeline completed in 136.271 s from
+cached WAV through export/worker shutdown. A real GPU test restricted the torch
+budget to 1173 MiB: batch 32 raised OOM, batch 16 succeeded with identical speaker
+turns. The frozen-source recheck measured ASR 200.482/205.401 s and diarization
+44.961/44.124 s. Final warm ASR therefore took 68.88% less time than that recheck.
+Live acquisition retest passed (14.566 s including resolution/download; FFmpeg
+resolution/conversion 1.740 s), with transfer/preparation telemetry populated.
+
+A final test-process audit caught a Windows Qt teardown abort **after** unittest
+printed OK. It was traced to test-owned hidden widgets surviving QApplication;
+explicit module teardown destroys widgets while Qt remains alive. Both focused
+Qt tests and the full suite then exited with code 0; repeated full runs confirmed
+clean exits. An OK line alone was not accepted as a passing process result.
+
+Full methodology, raw evidence locations, hardware tiers and limitations:
+[v0.3.0 report](benchmark/V0.3.0_REPORT.md). Other GPUs, a fresh-machine install,
+and a full 866-video/multi-day queue were not tested during this engagement.
+
+## 19. Final handoff and agreed verification scope
+
+The user clarified that the 866 videos are the production workload, not a test
+suite, and no GPU other than the RTX 3080 Laptop is available or required.
+The implementation and bounded local verification are complete. No further
+benchmark runs are scheduled as release gates. Final review corrected ownership
+lease wording and distinguished early batch-memory results from the final
+memory-safe measurements; these were documentation-only edits.
+
+Launch the updated checkout using `run.ps1`. Existing saved settings are
+preserved; Performance is explicitly opt-in through Settings → Optimization →
+Apply preset → OK and takes effect on the next run. Sequential large-v3 remains
+the default. Changes are local and uncommitted; no new standalone installer or
+fresh-machine certification is claimed. The measured report and user guide are
+the handoff; production queues, voice profiles and output files were untouched.

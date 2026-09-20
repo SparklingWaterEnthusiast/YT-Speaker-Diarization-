@@ -15,10 +15,12 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Callable
 
 import yt_dlp
+from .telemetry import span, event
 
 WATCH_RE = re.compile(r"(?:youtube\.com/(?:watch|shorts|live)|youtu\.be/)")
 PLAYLIST_RE = re.compile(r"youtube\.com/playlist\?|[?&]list=")
@@ -122,9 +124,16 @@ def download_audio(url: str, video_dir: Path, cfg,
     if existing and (video_dir / "meta.json").exists():
         return existing  # cache hit — never repeat completed work
 
+    transfer_seconds = 0.0
     def hook(d):
+        nonlocal transfer_seconds
         if cancelled and cancelled():
             raise CancelledError("download cancelled")
+        if d.get('status') == 'finished' and isinstance(d.get('elapsed'), (int, float)):
+            elapsed = max(0.0, d['elapsed'])
+            transfer_seconds += elapsed
+            event('download.transfer', duration_s=elapsed,
+                  bytes=d.get('downloaded_bytes'), timing_source='yt-dlp progress hook')
         if progress_cb and d.get("status") == "downloading":
             total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
             done = d.get("downloaded_bytes") or 0
@@ -145,7 +154,13 @@ def download_audio(url: str, video_dir: Path, cfg,
     }
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            started = time.perf_counter()
+            with span('download_and_metadata'):
+                info = ydl.extract_info(url, download=True)
+            if transfer_seconds:
+                event('acquisition.preparation_residual',
+                      duration_s=max(0.0,time.perf_counter()-started-transfer_seconds),
+                      note='Resolution/connection/postprocessing residual; not pure metadata time')
     except CancelledError:
         raise
     except Exception as exc:  # yt-dlp raises many exception types
@@ -262,7 +277,8 @@ def to_wav(audio_path: Path, ffmpeg: str) -> Path:
     cmd = [ffmpeg, "-y", "-i", str(audio_path), "-vn",
            "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(tmp)]
     creation = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-    proc = subprocess.run(cmd, capture_output=True, text=True, creationflags=creation)
+    with span('ffmpeg.conversion'):
+        proc = subprocess.run(cmd, capture_output=True, text=True, creationflags=creation)
     if proc.returncode != 0:
         tmp.unlink(missing_ok=True)
         # last non-empty stderr lines carry the actual error, not the build banner

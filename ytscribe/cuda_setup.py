@@ -14,6 +14,8 @@ import os
 import sys
 from pathlib import Path
 
+_DLL_HANDLES = {}
+
 
 def register_cuda_dlls() -> None:
     if sys.platform != "win32":
@@ -32,8 +34,10 @@ def register_cuda_dlls() -> None:
         except ImportError:
             pass
     for path in candidates:
-        if path.is_dir():
-            os.add_dll_directory(str(path))
+        if path.is_dir() and str(path) not in _DLL_HANDLES:
+            # The handle controls registration lifetime; discarding it closes
+            # the DLL directory immediately on CPython.
+            _DLL_HANDLES[str(path)] = os.add_dll_directory(str(path))
             # some loaders still consult PATH
             os.environ["PATH"] = str(path) + os.pathsep + os.environ.get("PATH", "")
 
@@ -52,5 +56,11 @@ def pick_device(preference: str = "auto") -> str:
 def pick_compute_type(preference: str, device: str) -> str:
     if preference != "auto":
         return preference
-    # int8_float16 fits Whisper large-v3 in 8 GB VRAM with negligible quality loss
-    return "int8_float16" if device == "cuda" else "int8"
+    if device == "cpu":
+        return "int8"
+    import ctranslate2
+    supported = ctranslate2.get_supported_compute_types("cuda")
+    for candidate in ("int8_float16", "int8_float32", "float32"):
+        if candidate in supported:
+            return candidate
+    return "default"

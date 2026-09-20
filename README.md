@@ -1,4 +1,4 @@
-# YTScribe
+# YTScribe v0.3.0
 
 A Windows desktop application that turns YouTube videos, playlists, and entire
 channels into **speaker-diarized, timestamped transcripts** you can read
@@ -20,18 +20,26 @@ instead of watching.
   bulk queue steps aside, then resumes automatically
 - File-manager queue control: multi-select, right-click retry/reprocess/
   reorder/remove, drag tabs, rename tabs (renames the folder)
-- Caches every stage — interrupted runs resume without repeating work
-- Designed for large jobs: a 1,000+-video channel can run unattended; failures
-  go to a retry queue and never stop the run
+- Caches completed stages for resume and re-export; models load only for missing inference stages
+- **Optimization controls** (v0.3.0): explicit hardware probe, optional batch-4
+  ASR, model residency, bounded memory retries, and opt-in performance traces
+- **Open Audio / Cache** and audio-retention settings make saved audio easy to find
+- Designed for large jobs: per-video failures go to a retry queue while the
+  remaining items continue; v0.3's local endurance test is shorter than a full channel
 
-Sized for an 8 GB VRAM GPU (RTX 3080 Laptop) out of the box; falls back to CPU
-automatically.
+Defaults remain **sequential large-v3, beam 5, word timestamps enabled**.
+The optional Performance preset was faster on one measured full video on an
+RTX 3080 Laptop 8 GB; batching can increase memory demand and changes decoding
+semantics. The final memory safeguards reduced the measured whole-run VRAM peak.
+See the [v0.3.0 benchmark report](benchmark/V0.3.0_REPORT.md) for measurements, quality limitations, and
+regression status. Automatic device selection uses CPU when CUDA is unavailable;
+runtime model/DLL errors are reported rather than silently changing devices.
 
 ## Quick start
 
 ```powershell
 git clone <this-repository>
-cd "Speedch Diariztion v0.1"
+cd "Speaker Diariztion v0.2.2"                          # or your checkout folder
 powershell -ExecutionPolicy Bypass -File setup.ps1   # one time, installs everything
 .\run.ps1                                            # launches the app
 ```
@@ -54,6 +62,7 @@ Headless operation (same pipeline, no window):
 | [CONFIGURATION.md](CONFIGURATION.md) | Every setting in `config.json`, cache policies, speaker renaming |
 | [DESIGN.md](DESIGN.md) | Architecture and technology decisions with rationale |
 | [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) | What was built, tested, and verified, in order |
+| [Benchmark report](benchmark/V0.3.0_REPORT.md) | v0.3.0 measurements, methodology, lifecycle checks, and limitations |
 
 ## Sample output (Markdown)
 
@@ -67,8 +76,8 @@ But I have to follow the evidence.
 ## Teaching it voices
 
 Rename a speaker once (click the completed video → play the sample → type
-the name) and YTScribe stores that person's voice fingerprint. Every future
-video recognizes them automatically. Profiles can also be seeded from a
+the name) and YTScribe stores that person's voice fingerprint. Future videos
+attempt automatic recognition; only confident matches receive names. Profiles can also be seeded from a
 professionally diarized transcript:
 
 ```powershell

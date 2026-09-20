@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Callable
 
 from .cuda_setup import pick_device
+from .inference import guarded_batch, is_oom, release_unused, torch_budget
+from .telemetry import span, event
 
 
 class Diarizer:
@@ -36,12 +38,11 @@ class Diarizer:
         from pyannote.audio import Pipeline
         self.log(f"Loading diarization pipeline '{self.cfg.diarization_model}'...")
         token = self.cfg.hf_token or None
-        self._pipeline = Pipeline.from_pretrained(self.cfg.diarization_model, token=token)
-        if self.device == "cuda":
-            try:
-                self._pipeline.to(torch.device("cuda"))
-            except RuntimeError as exc:
-                self.log(f"WARNING: could not move diarization to GPU ({exc}); using CPU.")
+        with span("diarization.model_load", cold=True, model=self.cfg.diarization_model):
+            pipeline = Pipeline.from_pretrained(self.cfg.diarization_model, token=token)
+            if self.device == "cuda":
+                pipeline.to(torch.device("cuda"))
+            self._pipeline = pipeline
         self.log("Diarization pipeline ready.")
 
     def diarize(self, wav: Path,
@@ -56,7 +57,27 @@ class Diarizer:
         hook = _ProgressHook(progress_cb) if progress_cb else None
         # Audio is preloaded in memory: pyannote's built-in decoder (torchcodec)
         # needs FFmpeg *shared* DLLs, which static Windows FFmpeg builds lack.
-        output = self._pipeline(_load_wav(wav), hook=hook, **kwargs)
+        with span("diarization.audio_load"):
+            audio = _load_wav(wav)
+        batch = guarded_batch(self.cfg.diarization_batch_size, self.cfg.vram_margin_mb,
+                              self.device, self.log)
+        with torch_budget(self.cfg.vram_margin_mb, self.device, self.log):
+            for attempt in range(self.cfg.oom_retries + 1):
+                self._pipeline.segmentation_batch_size = batch
+                self._pipeline.embedding_batch_size = batch
+                try:
+                    with span("diarization.inference", batch=batch,
+                              audio_duration=audio['waveform'].shape[1]/audio['sample_rate']):
+                        # Each attempt gets a fresh mapping, not failed cached tensors.
+                        output = self._pipeline(dict(audio), hook=hook, **kwargs)
+                    break
+                except RuntimeError as exc:
+                    if not is_oom(exc) or batch <= 1 or attempt >= self.cfg.oom_retries:
+                        raise
+                    self.log(f"Diarization out of memory at batch {batch}; retrying at {max(1, batch // 2)}.")
+                    event("diarization.oom", batch=batch, attempt=attempt)
+                release_unused()
+                batch = max(1, batch // 2)
 
         # pyannote 4 returns an object with .speaker_diarization (Annotation)
         # and .exclusive_speaker_diarization; older versions return Annotation.
@@ -100,6 +121,8 @@ class Diarizer:
         if self._pipeline is not None:
             del self._pipeline
             self._pipeline = None
+            release_unused()
+            event("diarization.unloaded")
 
 
 def _load_wav(path: Path) -> dict:
@@ -146,9 +169,11 @@ def run_stage(wav: Path, out_file: Path, diarizer: Diarizer,
         cached = json.loads(out_file.read_text(encoding="utf-8"))
         # pre-v0.2 artifacts lack embeddings -> recompute for recognition
         if "embeddings" in cached:
+            event("diarization.cache_hit", path=str(out_file))
             return cached
     result = diarizer.diarize(wav, progress_cb)
     tmp = out_file.with_suffix(".tmp")
-    tmp.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(out_file)
+    with span("diarization.serialization"):
+        tmp.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(out_file)
     return result

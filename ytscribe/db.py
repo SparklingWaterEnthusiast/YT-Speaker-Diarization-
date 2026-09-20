@@ -68,6 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_queue ON jobs(queue_id, position);
 
 class JobStore:
     def __init__(self, db_path: Path):
+        self.db_path = Path(db_path).resolve()
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
